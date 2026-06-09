@@ -204,7 +204,7 @@ export default function App() {
             </div>
             <div>
               <span className="text-base font-extrabold tracking-tight text-slate-900 leading-none block">SD Pintar</span>
-              <span className="text-[10px] font-bold text-indigo-650 tracking-wider uppercase block mt-1.5">Kasir Tabungan</span>
+              <span className="text-[10px] font-bold text-indigo-650 tracking-wider uppercase block mt-1.5">Transaksi Tabungan</span>
             </div>
           </div>
 
@@ -232,7 +232,7 @@ export default function App() {
               }`}
             >
               <Wallet size={15} />
-              <span>Kasir Pembayaran</span>
+              <span>Transaksi Baru</span>
             </button>
             <button
               id="nav-btn-sidebar-students"
@@ -289,7 +289,7 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => alert('Sesi Kasir SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
+            onClick={() => alert('Sesi Transaksi SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
             className="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 border border-slate-200 rounded-lg"
           >
             <LogOut size={14} />
@@ -304,7 +304,7 @@ export default function App() {
           <div>
             <h1 className="text-xl font-bold text-slate-900">
               {activeTab === 'dashboard' && 'Dashboard Keuangan'}
-              {activeTab === 'cashier' && 'Kasir Tabungan Siswa'}
+              {activeTab === 'cashier' && 'Transaksi Tabungan Siswa'}
               {activeTab === 'students' && 'Manajemen Akun Siswa'}
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}
             </h1>
@@ -320,7 +320,7 @@ export default function App() {
             <div className="h-8 w-px bg-slate-200" />
             <button 
               id="logout-btn-mock-sidebar"
-              onClick={() => alert('Sesi Kasir SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
+              onClick={() => alert('Sesi Transaksi SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
               className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               title="Lock Session"
             >
@@ -420,7 +420,7 @@ export default function App() {
           }`}
         >
           <Wallet size={18} />
-          <span className="text-[9px] mt-1">Kasir</span>
+          <span className="text-[9px] mt-1">Transaksi</span>
         </button>
         <button
           id="mob-btn-students"

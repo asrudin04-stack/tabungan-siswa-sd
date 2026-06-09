@@ -156,7 +156,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" id="cashier-interface">
       
-      {/* KIRI: PANEL TRANSAKSI / INPUT KASIR (ColSpan 3) */}
+      {/* KIRI: PANEL TRANSAKSI / INPUT TRANSAKSI (ColSpan 3) */}
       <div className="lg:col-span-3 space-y-6">
         
         {/* TAHAP 1: pencarian siswa */}
@@ -261,7 +261,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
           )}
         </div>
 
-        {/* TAHAP 2: Detail Transaksi Kasir */}
+        {/* TAHAP 2: Detail Transaksi */}
         {selectedStudent ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
@@ -402,9 +402,9 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                 </div>
               </div>
 
-              {/* metadata / Kasir yang bertugas */}
+              {/* metadata / Petugas yang bertugas */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs text-slate-500">
-                <span className="font-bold">Kasir / Guru Bertanggungjawab:</span>
+                <span className="font-bold">Petugas / Guru Bertanggungjawab:</span>
                 <input 
                   type="text"
                   id="operator-name-input"
@@ -524,7 +524,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                 <span>{printedReceipt ? formatDate(printedReceipt.date, true) : formatDate(new Date().toISOString(), true)}</span>
               </div>
               <div className="flex justify-between">
-                <span>KASIR:</span>
+                <span>PETUGAS:</span>
                 <span className="font-bold uppercase">{printedReceipt ? printedReceipt.recordedBy : operator || 'WALI KELAS'}</span>
               </div>
             </div>
@@ -576,7 +576,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                 <p className="border-t border-slate-300 pt-1 font-bold">....................</p>
               </div>
               <div>
-                <p className="text-slate-400">Penerima Kasir</p>
+                <p className="text-slate-400">Petugas Penerima</p>
                 <div className="h-10" />
                 <p className="border-t border-slate-300 pt-1 font-bold uppercase">{printedReceipt ? printedReceipt.recordedBy.split(' ')[0] : operator.split(' ')[0] || 'GURU'}</p>
               </div>
@@ -599,9 +599,9 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
        SDN HARAPAN BANGSA
        STRUK TABUNGAN SISWA
 =================================
-RESI   : ${printedReceipt ? printedReceipt.id : 'DRAFT'}
+RESID  : ${printedReceipt ? printedReceipt.id : 'DRAFT'}
 TANGGAL: ${printedReceipt ? formatDate(printedReceipt.date, true) : formatDate(new Date().toISOString(), true)}
-KASIR  : ${printedReceipt ? printedReceipt.recordedBy : operator}
+PETUGAS: ${printedReceipt ? printedReceipt.recordedBy : operator}
 
 SISWA  : ${printedReceipt ? printedReceipt.studentName : selectedStudent?.name || 'NAMA'}
 NIS/KLS: ${printedReceipt ? `${printedReceipt.studentId} / ${printedReceipt.studentGrade}` : `${selectedStudent?.nis || 'NIS'} / ${selectedStudent?.grade || 'GRADE'}`}
@@ -647,7 +647,7 @@ Masa Depan Gemilang!
             
             <div>RESI: {printedReceipt ? printedReceipt.id : generateReceiptNumber(txType, 99)}</div>
             <div>TANGGAL: {printedReceipt ? formatDate(printedReceipt.date, true) : formatDate(new Date().toISOString(), true)}</div>
-            <div>KASIR: {printedReceipt ? printedReceipt.recordedBy : operator}</div>
+            <div>PETUGAS: {printedReceipt ? printedReceipt.recordedBy : operator}</div>
             
             <div className="border-b border-dashed border-slate-400 my-2" />
             

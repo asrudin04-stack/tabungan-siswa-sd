@@ -560,7 +560,7 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
               <span className="text-indigo-600">
                 <Clock size={18} />
               </span>
-              <h2 className="text-lg font-bold text-slate-800">Aktivitas Terbaru Kasir</h2>
+              <h2 className="text-lg font-bold text-slate-800">Aktivitas Transaksi Terbaru</h2>
             </div>
             <button 
               id="view-all-rekap-from-dashboard"

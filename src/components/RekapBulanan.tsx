@@ -523,7 +523,7 @@ export default function RekapBulanan({
             </div>
             <div>
               <p className="text-slate-500">Jakarta, {formatDate(new Date().toISOString())}</p>
-              <p className="font-bold uppercase">Petugas bendahara Kasir Guru</p>
+              <p className="font-bold uppercase">Petugas Bendahara Tabungan</p>
               <div className="h-20" />
               <p className="font-bold underline uppercase">Bu Rismawati, S.Pd.</p>
               <p className="text-[10px] text-slate-500">NIP. 19820315 200801 2 005</p>
