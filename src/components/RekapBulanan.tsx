@@ -438,9 +438,9 @@ export default function RekapBulanan({
           
           {/* Print Letterhead Header */}
           <div className="text-center space-y-1 pb-4 border-b-2 border-slate-900 font-mono">
-            <h1 className="text-xl font-bold uppercase tracking-tight">SD NEGERI HARAPAN BANGSA</h1>
-            <p className="text-xs">Alamat: Jalan Utama Pendidikan No. 4, Kecamatan Menteng, Jakarta</p>
-            <p className="text-xs">Telp: (021) 8877-6655 | NPSN: 10405060 | Kode Pos: 10310</p>
+            <h1 className="text-xl font-bold uppercase tracking-tight">SD NEGERI 1 GEMBLENGAN</h1>
+            <p className="text-xs">Alamat: Gemblengan, Kecamatan Garung, Kabupaten Wonosobo, Jawa Tengah</p>
+            <p className="text-xs">Telp: (0286) 5544-3322 | NPSN: 20307080 | Kode Pos: 56351</p>
           </div>
 
           {/* Laporan Title */}
@@ -516,13 +516,13 @@ export default function RekapBulanan({
           <div className="pt-12 grid grid-cols-2 text-center text-xs font-mono leading-6">
             <div>
               <p className="text-slate-500">Mengetahui,</p>
-              <p className="font-bold uppercase">Kepala Sekolah SDN Harapan Bangsa</p>
+              <p className="font-bold uppercase">Kepala Sekolah SD NEGERI 1 GEMBLENGAN</p>
               <div className="h-20" />
               <p className="font-bold underline uppercase">M. Gunawan Wibisono, M.Pd.</p>
               <p className="text-[10px] text-slate-500">NIP. 19740510 200212 1 002</p>
             </div>
             <div>
-              <p className="text-slate-500">Jakarta, {formatDate(new Date().toISOString())}</p>
+              <p className="text-slate-500">Wonosobo, {formatDate(new Date().toISOString())}</p>
               <p className="font-bold uppercase">Petugas Bendahara Tabungan</p>
               <div className="h-20" />
               <p className="font-bold underline uppercase">Bu Rismawati, S.Pd.</p>
@@ -531,7 +531,7 @@ export default function RekapBulanan({
           </div>
 
           <div className="text-center text-[9px] text-slate-400 pt-16 border-t border-dashed border-slate-300 font-mono">
-            <p>Dokumen Laporan Tabungan Siswa SDN Harapan Bangsa diunduh secara sah melalui Sistem Aplikasi SD Pintar.</p>
+            <p>Dokumen Laporan Tabungan Siswa SD NEGERI 1 GEMBLENGAN diunduh secara sah melalui Sistem Aplikasi SD Pintar.</p>
             <p>ID Berkas Laporan: RKP-{new Date().toISOString().slice(0,10).replace(/-/g,'')}-{filteredLedger.length}</p>
           </div>
 

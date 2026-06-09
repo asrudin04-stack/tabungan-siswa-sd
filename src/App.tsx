@@ -267,7 +267,7 @@ export default function App() {
           <div className="bg-indigo-650 rounded-2xl p-4 text-white relative overflow-hidden group">
             <div className="absolute right-[-10px] bottom-[-10px] w-16 h-16 bg-white/10 rounded-full blur-sm" />
             <p className="text-[9px] opacity-80 uppercase tracking-widest font-extrabold mb-1">Status Operasional</p>
-            <p className="text-xs font-bold truncate">SDN Harapan Bangsa</p>
+            <p className="text-xs font-bold truncate">SD NEGERI 1 GEMBLENGAN</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[9px] text-slate-100 font-medium">Buku Kas Luring</span>
@@ -283,7 +283,7 @@ export default function App() {
             <School size={16} />
           </div>
           <div>
-            <h1 className="text-xs font-black tracking-tight text-slate-900 leading-tight">SD NEGERI HARAPAN BANGSA</h1>
+            <h1 className="text-xs font-black tracking-tight text-slate-900 leading-tight">SD NEGERI 1 GEMBLENGAN</h1>
             <p className="text-[10px] text-indigo-600 font-medium tracking-wide uppercase">Tabungan SD Pintar</p>
           </div>
         </div>
@@ -308,7 +308,7 @@ export default function App() {
               {activeTab === 'students' && 'Manajemen Akun Siswa'}
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Hai, Admin Operasional • SDN Harapan Bangsa • Kas Terbuka</p>
+            <p className="text-xs text-slate-500 mt-0.5">Hai, Admin Operasional • SD NEGERI 1 GEMBLENGAN • Kas Terbuka</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-end text-right">

@@ -508,9 +508,9 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
 
             {/* School Header */}
             <div className="text-center pt-2 pb-1 border-b border-dashed border-slate-300">
-              <h4 className="font-extrabold text-[13px] tracking-tight">SDN HARAPAN BANGSA</h4>
-              <p className="text-[10px] text-slate-500">Jl. Utama Pendidikan No. 4, Jakarta</p>
-              <p className="text-[9px] text-slate-400 mt-0.5">Telp: (021) 8877-6655</p>
+              <h4 className="font-extrabold text-[13px] tracking-tight">SD NEGERI 1 GEMBLENGAN</h4>
+              <p className="text-[10px] text-slate-500">Gemblengan, Kec. Garung, Kab. Wonosobo</p>
+              <p className="text-[9px] text-slate-400 mt-0.5">Telp: (0286) 5544-3322</p>
             </div>
 
             {/* Receipt metadata */}
@@ -585,7 +585,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
             {/* Small tagline of saving */}
             <div className="text-center text-[9px] text-slate-400 pt-4 border-t border-slate-200">
               <p className="font-bold text-slate-600">"Siswa Gemar Menabung, Masa Depan Gemilang!"</p>
-              <p className="mt-0.5">sdnharapanbangsa.sch.id</p>
+              <p className="mt-0.5">sdn1gemblengan.sch.id</p>
             </div>
           </div>
 
@@ -594,10 +594,10 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
             <button
               id="download-slip-txt"
               onClick={() => {
-                const textReceipt = `
+            const textReceipt = `
 =================================
-       SDN HARAPAN BANGSA
-       STRUK TABUNGAN SISWA
+     SD NEGERI 1 GEMBLENGAN
+      STRUK TABUNGAN SISWA
 =================================
 RESID  : ${printedReceipt ? printedReceipt.id : 'DRAFT'}
 TANGGAL: ${printedReceipt ? formatDate(printedReceipt.date, true) : formatDate(new Date().toISOString(), true)}
@@ -641,8 +641,8 @@ Masa Depan Gemilang!
         <div className="hidden print-only" id="browser-print-layout">
           <div className="p-8 max-w-sm mx-auto border border-slate-300 rounded text-xs leading-5 font-mono">
             {/* Duplicate thermal slip optimized for black and white high-contrast printer */}
-            <div className="text-center font-bold text-sm">SDN HARAPAN BANGSA</div>
-            <div className="text-center text-[10px]">Jl. Utama Pendidikan No. 4, Jakarta</div>
+            <div className="text-center font-bold text-sm">SD NEGERI 1 GEMBLENGAN</div>
+            <div className="text-center text-[10px]">Gemblengan, Kec. Garung, Kab. Wonosobo</div>
             <div className="border-b border-dashed border-slate-400 my-2" />
             
             <div>RESI: {printedReceipt ? printedReceipt.id : generateReceiptNumber(txType, 99)}</div>
