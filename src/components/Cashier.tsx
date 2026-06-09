@@ -160,17 +160,17 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
       <div className="lg:col-span-3 space-y-6">
         
         {/* TAHAP 1: pencarian siswa */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#6366f1]">
+          <h2 className="text-lg font-black text-slate-900 flex items-center gap-2 mb-4">
+            <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200">
               <User size={18} />
             </span>
-            Langkah 1: Cari & Pilih Siswa
+            Langkah 1: Cari & Pilih Siswa 🔍
           </h2>
 
           <div className="relative" id="student-search-container">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={18} />
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <Search size={18} className="stroke-[2.5]" />
             </div>
             <input 
               id="student-search-input"
@@ -182,7 +182,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                 setShowDropdown(true);
               }}
               onFocus={() => setShowDropdown(true)}
-              className="pl-11 pr-4 py-3 w-full bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              className="pl-11 pr-4 py-3.5 w-full bg-slate-50 border-2 border-slate-900 rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
             />
 
             {/* Dropdown Hasil Pencarian */}
@@ -266,44 +266,44 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6"
+            className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#9333ea] space-y-6"
             id="cashier-tx-form-block"
           >
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <span className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <span className="p-1.5 bg-purple-100 text-purple-700 rounded-lg border border-purple-200">
                 <Wallet size={18} />
               </span>
-              Langkah 2: Proses Transaksi
+              Langkah 2: Proses Transaksi Tabungan ✍️
             </h2>
 
             <form onSubmit={handleSubmitTransaction} className="space-y-6">
               
-              {/* Jenis Transaksi (Tab) */}
-              <div className="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl" id="tx-type-tabs">
+              {/* Jenis Transaksi (Tab) - 3D Styled */}
+              <div className="grid grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-2xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#000]" id="tx-type-tabs">
                 <button
                   type="button"
                   id="tab-select-setor"
                   onClick={() => setTxType('SETOR')}
-                  className={`py-3.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`py-3.5 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     txType === 'SETOR'
-                      ? 'bg-white text-emerald-600 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-emerald-500 text-white border-2 border-slate-950 shadow-[2px_2px_0px_0px_#000]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                   }`}
                 >
-                  <ArrowUpRight size={18} />
+                  <ArrowUpRight size={18} className="stroke-[3]" />
                   TABUNG / SETOR
                 </button>
                 <button
                   type="button"
                   id="tab-select-tarik"
                   onClick={() => setTxType('TARIK')}
-                  className={`py-3.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  className={`py-3.5 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
                     txType === 'TARIK'
-                      ? 'bg-white text-rose-600 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-rose-500 text-white border-2 border-slate-950 shadow-[2px_2px_0px_0px_#000]'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
                   }`}
                 >
-                  <ArrowDownRight size={18} />
+                  <ArrowDownRight size={18} className="stroke-[3]" />
                   TARIK TUNAI
                 </button>
               </div>
@@ -311,22 +311,22 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
               {/* Jumlah Uang & Quick Actions */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nominal Transaksi (Rp)</label>
+                  <label className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">Nominal Transaksi (Rp)</label>
                   {amountInput > 0 && (
                     <button 
                       type="button"
                       onClick={handleClearAmount}
-                      className="text-xs text-rose-500 hover:text-rose-700 font-semibold flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded"
+                      className="text-xs text-rose-600 hover:bg-rose-100 font-extrabold flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-250 cursor-pointer"
                       id="clear-amount-btn"
                     >
-                      <Trash2 size={12} /> Hapus
+                      <Trash2 size={12} className="stroke-[2.5]" /> Hapus
                     </button>
                   )}
                 </div>
 
                 {/* Big Currency Input */}
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 font-bold text-lg font-mono">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-800 font-black text-lg font-mono">
                     Rp
                   </div>
                   <input
@@ -335,7 +335,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                     placeholder="Contoh: 10.000"
                     value={manualAmountText ? new Intl.NumberFormat('id-ID').format(amountInput) : ''}
                     onChange={(e) => handleManualAmountChange(e.target.value)}
-                    className="pl-12 pr-4 py-4 w-full bg-slate-50 border border-slate-200 rounded-xl text-xl font-extrabold text-slate-800 font-mono tracking-wide focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all placeholder-slate-300"
+                    className="pl-12 pr-4 py-4 w-full bg-white border-2 border-slate-900 rounded-xl text-xl font-black text-slate-900 font-mono tracking-wide focus:outline-none focus:border-indigo-600 transition-all placeholder-slate-300 shadow-[3px_3px_0px_0px_#000]"
                   />
                 </div>
 
@@ -347,7 +347,7 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                       type="button"
                       id={`quick-increment-${q}`}
                       onClick={() => handleQuickAmountClick(q)}
-                      className="py-2.5 text-xs font-bold bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200/60 rounded-xl hover:border-indigo-200 transition-all font-mono shadow-2xs cursor-pointer"
+                      className="py-2.5 text-xs font-black bg-white hover:bg-amber-100 text-slate-800 border-2 border-slate-900 rounded-xl hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#0f172a] active:shadow-none shadow-[1px_1px_0px_0px_#000] transition-all font-mono cursor-pointer"
                     >
                       +{new Intl.NumberFormat('id-ID').format(q/1000)}rb
                     </button>
@@ -415,26 +415,26 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
                 />
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button - 3D tactile button style */}
               <button
                 type="submit"
                 id="submit-transaction-btn"
                 disabled={!isValidTransaction}
-                className={`py-4 w-full rounded-xl font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer ${
+                className={`py-4 w-full rounded-2xl font-black flex items-center justify-center gap-2 border-2 border-slate-900 transition-all cursor-pointer ${
                   isValidTransaction 
                     ? txType === 'SETOR'
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md'
-                      : 'bg-rose-600 hover:bg-rose-700 text-white hover:shadow-md'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-[4px_4px_0px_0px_#064e3b] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_0px_#064e3b] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_#064e3b]'
+                      : 'bg-rose-500 hover:bg-rose-600 text-white shadow-[4px_4px_0px_0px_#4c0519] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_0px_#4c0519] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_#4c0519]'
+                    : 'bg-slate-200 text-slate-400 border-slate-300 shadow-none cursor-not-allowed'
                 }`}
               >
                 {txType === 'SETOR' ? (
                   <>
-                    <CheckCircle size={18} /> Simpan Setoran ({formatCurrency(amountInput)})
+                    <CheckCircle size={18} className="stroke-[2.5]" /> Simpan Setoran ({formatCurrency(amountInput)})
                   </>
                 ) : (
                   <>
-                    <ArrowDownRight size={18} /> Ambil Tarikan ({formatCurrency(amountInput)})
+                    <ArrowDownRight size={18} className="stroke-[2.5]" /> Ambil Tarikan ({formatCurrency(amountInput)})
                   </>
                 )}
               </button>
@@ -485,10 +485,10 @@ export default function Cashier({ students, onAddTransaction, recordedBy }: Cash
         </AnimatePresence>
 
         {/* Live Struk Simulator */}
-        <div className="bg-slate-800 text-slate-150 p-6 rounded-2xl shadow-xl border border-slate-700 relative flex flex-col no-print" id="thermal-receipt-container">
-          <div className="flex justify-between items-center pb-4 border-b border-slate-700/60 mb-5">
-            <h3 className="text-sm font-extrabold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
-              <FileText size={15} /> Simulator Struk
+        <div className="bg-slate-900 text-slate-100 p-6 rounded-2xl border-2 border-slate-950 shadow-[5px_5px_0px_0px_#f59e0b] relative flex flex-col no-print" id="thermal-receipt-container">
+          <div className="flex justify-between items-center pb-4 border-b border-slate-850 mb-5">
+            <h3 className="text-sm font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+              <FileText size={15} className="stroke-[2.5]" /> Simulator Struk
             </h3>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="Ready to print" />
           </div>
@@ -622,7 +622,7 @@ Masa Depan Gemilang!
                 a.download = `struk-${printedReceipt?.id || 'simulasi'}.txt`;
                 a.click();
               }}
-              className="py-2.5 text-xs font-semibold bg-slate-700 text-slate-250 hover:bg-slate-600 rounded-lg flex items-center justify-center gap-1.5 border border-slate-600 cursor-pointer transition-all"
+              className="py-2.5 text-xs font-black bg-slate-800 text-white hover:bg-slate-700 rounded-xl flex items-center justify-center gap-1.5 border-2 border-slate-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none transition-all cursor-pointer"
             >
               <Download size={14} /> Unduh Nota
             </button>
@@ -630,9 +630,9 @@ Masa Depan Gemilang!
             <button
               id="print-sheet-receipt-btn"
               onClick={handlePrintReceipt}
-              className="py-2.5 text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 rounded-lg flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md cursor-pointer transition-all"
+              className="py-2.5 text-xs font-black bg-indigo-500 text-white hover:bg-indigo-600 rounded-xl flex items-center justify-center gap-1.5 border-2 border-slate-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none transition-all cursor-pointer"
             >
-              <Printer size={14} /> Cetak Slip
+              <Printer size={14} className="stroke-[2.5]" /> Cetak Slip
             </button>
           </div>
         </div>

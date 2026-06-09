@@ -303,7 +303,7 @@ export default function App() {
         <header className="h-20 bg-white border-b border-slate-200 px-8 shrink-0 hidden lg:flex items-center justify-between no-print" id="desktop-top-header">
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {activeTab === 'dashboard' && 'Dashboard Keuangan'}
+              {activeTab === 'dashboard' && 'Dashboard Tabungan'}
               {activeTab === 'cashier' && 'Transaksi Tabungan Siswa'}
               {activeTab === 'students' && 'Manajemen Akun Siswa'}
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}

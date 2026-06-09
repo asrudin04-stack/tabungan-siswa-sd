@@ -195,35 +195,35 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
 
   return (
     <div className="space-y-6 animate-fade-in" id="dashboard-container">
-      {/* Upper Welcome and Month Filter Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm" id="welcome-banner">
+      {/* Upper Welcome and Month Filter Banner - Visual Ceria & 3D */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-amber-50 p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#f59e0b]" id="welcome-banner">
         <div>
           <div className="flex items-center gap-2">
-            <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg inline-flex">
-              <Sparkles size={18} className="animate-pulse" />
+            <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg inline-flex neo-3d-button animate-bounce-gentle">
+              <Sparkles size={18} className="animate-spin" style={{ animationDuration: '6s' }} />
             </span>
-            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Sistem Tabungan SD Pintar</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-700 font-mono">⚡ Sistem Tabungan Anak SD Pintar</p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight mt-1">
-            Dashboard Utama Guru
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-950 tracking-tight mt-1">
+            Dashboard Tabungan 👋
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm font-semibold text-slate-650 text-slate-600 mt-1">
             Pantau arus tabungan siswa secara real-time, cetak rekapitulasi, dan kelola setoran siswa dengan mudah.
           </p>
         </div>
 
         {/* Dynamic Month Filter */}
-        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-fit">
-          <span className="p-1 text-slate-500 ml-1.5">
+        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] w-fit">
+          <span className="p-1 text-indigo-600 ml-1.5 animate-bounce-gentle">
             <Calendar size={16} />
           </span>
           <select 
             id="month-filter-dropdown"
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-transparent text-sm font-medium text-slate-700 focus:outline-none pr-3 py-1 cursor-pointer"
+            className="bg-transparent text-sm font-black text-slate-800 focus:outline-none pr-3 py-1 cursor-pointer"
           >
-            <option value="ALL">Semua Waktu</option>
+            <option value="ALL">Semua Periode</option>
             {monthFilters.map(my => (
               <option key={my} value={my}>
                 {getIndonesianMonthYear(my)}
@@ -238,59 +238,59 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
         
         {/* Total Saldo Keseluruhan */}
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-indigo-700 text-white p-6 rounded-2xl shadow-md border border-indigo-500/20"
+          whileHover={{ y: -4, scale: 1.01 }}
+          className="relative overflow-hidden bg-gradient-to-br from-indigo-550 via-indigo-600 to-purple-600 text-white p-6 rounded-2xl border-2 border-slate-900 shadow-[6px_6px_0px_0px_#4f46e5] group"
           id="stat-box-total"
         >
           {/* Subtle decorative circles */}
-          <div className="absolute right-[-10px] bottom-[-10px] w-24 h-24 bg-white/10 rounded-full blur-xl" />
-          <div className="absolute left-[-20px] top-[-20px] w-20 h-20 bg-indigo-500/30 rounded-full blur-lg" />
+          <div className="absolute right-[-10px] bottom-[-10px] w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-125 transition-transform" />
+          <div className="absolute left-[-20px] top-[-20px] w-20 h-20 bg-indigo-400/30 rounded-full blur-lg" />
           
           <div className="flex justify-between items-start">
-            <span className="p-2.5 bg-white/15 backdrop-blur-md rounded-xl">
-              <Wallet size={20} className="text-indigo-100" />
+            <span className="p-2.5 bg-white/20 backdrop-blur-md rounded-xl border border-white/20">
+              <Wallet size={20} className="text-white" />
             </span>
-            <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full uppercase tracking-wider text-indigo-50">
-              Total Pembukuan
+            <span className="text-[10px] font-black bg-yellow-400 text-slate-950 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              Total Saldo Kas
             </span>
           </div>
           <div className="mt-4">
-            <p className="text-xs text-indigo-200">Saldo Gabungan Siswa</p>
-            <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight font-mono whitespace-nowrap mt-1">
+            <p className="text-xs text-indigo-100 font-bold">Dana Tabungan Terkumpul</p>
+            <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight font-mono text-yellow-300 mt-1 drop-shadow-sm">
               {formatCurrency(stats.schoolTotalSavings)}
             </h3>
           </div>
-          <div className="mt-3 text-xs flex items-center gap-1.5 text-indigo-200">
-            <School size={12} />
-            <span>Disimpan aman di rekening sekolah</span>
+          <div className="mt-3 text-[11px] flex items-center gap-1.5 text-indigo-100 font-semibold">
+            <School size={12} className="text-yellow-300" />
+            <span>Rekening Kas Sekolah Aman luring</span>
           </div>
         </motion.div>
 
         {/* Total Setoran */}
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          whileHover={{ y: -4, scale: 1.01 }}
+          className="bg-white p-6 rounded-2xl neo-3d-emerald flex flex-col justify-between"
           id="stat-box-setor"
         >
           <div>
             <div className="flex justify-between items-start">
-              <span className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                <ArrowUpRight size={20} />
+              <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl border border-emerald-250">
+                <ArrowUpRight size={20} className="stroke-[3]" />
               </span>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full uppercase tracking-wider block">
                 {selectedMonth === 'ALL' ? 'Total Setor' : 'Setor Bulan Ini'}
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-400">Total Kredit Masuk</p>
-              <h3 className="text-2x font-bold tracking-tight text-slate-800 font-mono mt-1">
+              <p className="text-xs text-slate-500 font-bold">Total Kredit Masuk</p>
+              <h3 className="text-2xl font-black tracking-tight text-emerald-600 font-mono mt-1">
                 {formatCurrency(stats.deposits)}
               </h3>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
             <span>Uang Masuk</span>
-            <span className="text-emerald-600 font-semibold flex items-center gap-0.5">
+            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-black flex items-center gap-0.5">
               <TrendingUp size={12} /> Aktif
             </span>
           </div>
@@ -298,59 +298,59 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
 
         {/* Total Penarikan */}
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          whileHover={{ y: -4, scale: 1.01 }}
+          className="bg-white p-6 rounded-2xl neo-3d-rose flex flex-col justify-between"
           id="stat-box-tarik"
         >
           <div>
             <div className="flex justify-between items-start">
-              <span className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
-                <ArrowDownRight size={20} />
+              <span className="p-2.5 bg-rose-100 text-rose-800 rounded-xl border border-rose-250">
+                <ArrowDownRight size={20} className="stroke-[3]" />
               </span>
-              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-rose-800 bg-rose-100 px-2.5 py-1 rounded-full uppercase tracking-wider block">
                 {selectedMonth === 'ALL' ? 'Total Tarik' : 'Tarik Bulan Ini'}
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-400">Total Debit Keluar</p>
-              <h3 className="text-2x font-bold tracking-tight text-slate-800 font-mono mt-1">
+              <p className="text-xs text-slate-500 font-bold">Total Debit Keluar</p>
+              <h3 className="text-2xl font-black tracking-tight text-rose-600 font-mono mt-1">
                 {formatCurrency(stats.withdrawals)}
               </h3>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
             <span>Uang Diambil</span>
-            <span className="text-rose-600 font-semibold">
-              Kebutuhan Siswa
+            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-black">
+              Keperluan Siswa
             </span>
           </div>
         </motion.div>
 
         {/* Total Siswa Berpartisipasi */}
         <motion.div 
-          whileHover={{ y: -3 }}
-          className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between"
+          whileHover={{ y: -4, scale: 1.01 }}
+          className="bg-white p-6 rounded-2xl neo-3d-sky flex flex-col justify-between"
           id="stat-box-siswa"
         >
           <div>
             <div className="flex justify-between items-start">
-              <span className="p-2.5 bg-sky-50 text-sky-600 rounded-xl">
-                <Users size={20} />
+              <span className="p-2.5 bg-sky-100 text-sky-800 rounded-xl border border-sky-250">
+                <Users size={20} className="stroke-[2.5]" />
               </span>
-              <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-sky-800 bg-sky-100 px-2.5 py-1 rounded-full uppercase tracking-wider block">
                 Partisipasi Siswa
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-400">Rasio Siswa Menabung</p>
-              <h3 className="text-2x font-bold tracking-tight text-slate-800 font-mono mt-1">
-                {stats.activeSaverCount} <span className="text-xs font-normal text-slate-400">/ {stats.totalStudentsCount} Siswa</span>
+              <p className="text-xs text-slate-500 font-bold">Rasio Siswa Menabung</p>
+              <h3 className="text-2xl font-black tracking-tight text-slate-900 font-mono mt-1">
+                {stats.activeSaverCount} <span className="text-xs font-semibold text-slate-400">/ {stats.totalStudentsCount} Siswa</span>
               </h3>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between text-xs text-slate-500">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
             <span>Tingkat Menabung</span>
-            <span className="font-semibold text-slate-700">
+            <span className="font-extrabold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md">
               {stats.totalStudentsCount > 0 
                 ? `${Math.round((stats.activeSaverCount / stats.totalStudentsCount) * 100)}%` 
                 : '0%'}
@@ -364,17 +364,17 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="dashboard-charts-grid">
         
         {/* Grafik Tren Tabungan */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col" id="chart-card-trend">
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#8b5cf6] lg:col-span-2 flex flex-col" id="chart-card-trend">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Tren Tabungan Bulanan</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-1.5">📈 Tren Tabungan Bulanan</h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {selectedMonth === 'ALL' 
                   ? 'Perkembangan setoran & penarikan historis' 
                   : `Grafik harian bulan ${getIndonesianMonthYear(selectedMonth)}`}
               </p>
             </div>
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-3 text-xs font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"/> Setor</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"/> Tarik</span>
             </div>
@@ -383,8 +383,8 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
           <div className="h-[280px] w-full" id="trend-chart-container">
             {chartTimelineData.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <Clock className="stroke-1 text-slate-300 mb-2" size={32} />
-                <p className="text-sm">Belum ada transaksi di periode ini</p>
+                <Clock className="stroke-1 text-slate-300 mb-2 animate-spin" size={32} style={{ animationDuration: '4s' }} />
+                <p className="text-sm font-semibold">Belum ada transaksi di periode ini</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -394,11 +394,11 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                 >
                   <defs>
                     <linearGradient id="colorSetor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="colorTarik" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
+                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.25}/>
                       <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
@@ -407,20 +407,20 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                     dataKey="name" 
                     tickLine={false} 
                     axisLine={false} 
-                    tick={{ fill: '#94a3b8', fontSize: 11 }} 
+                    tick={{ fill: '#475569', fontSize: 11, fontWeight: 'bold' }} 
                   />
                   <YAxis 
                     tickLine={false} 
                     axisLine={false} 
-                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                    tick={{ fill: '#475569', fontSize: 10, fontWeight: 'bold' }}
                     tickFormatter={(val) => val >= 1000000 ? `${(val/1000000).toFixed(1)}jt` : val >= 1000 ? `${val/1000}rb` : val} 
                   />
                   <Tooltip 
                     formatter={(value: any) => [formatCurrency(value), '']}
-                    contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', color: '#1e293b' }}
+                    contentStyle={{ border: '2px solid #0f172a', borderRadius: '12px', boxShadow: '4px 4px 0px 0px #0f172a', color: '#1e293b', fontWeight: 'bold' }}
                   />
-                  <Area type="monotone" dataKey="Setor" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSetor)" name="Setoran" />
-                  <Area type="monotone" dataKey="Tarik" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorTarik)" name="Penarikan" />
+                  <Area type="monotone" dataKey="Setor" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorSetor)" name="Setoran" />
+                  <Area type="monotone" dataKey="Tarik" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorTarik)" name="Penarikan" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -428,10 +428,10 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
         </div>
 
         {/* Klasemen Tabungan Kelas */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col" id="chart-card-class">
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#ec4899] flex flex-col" id="chart-card-class">
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-slate-800">Komparasi Antar Kelas</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Perolehan akumulasi tabungan tiap jenjang kelas</p>
+            <h2 className="text-lg font-black text-slate-900">🎒 Komparasi Antar Kelas</h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Perolehan akumulasi tabungan tiap jenjang kelas</p>
           </div>
           
           <div className="h-[230px] w-full" id="class-chart-container">
@@ -445,33 +445,33 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                   dataKey="grade" 
                   tickLine={false} 
                   axisLine={false} 
-                  tick={{ fill: '#64748b', fontSize: 10 }} 
+                  tick={{ fill: '#475569', fontSize: 10, fontWeight: 'bold' }} 
                 />
                 <YAxis 
                   tickLine={false} 
                   axisLine={false} 
-                  tick={{ fill: '#94a3b8', fontSize: 9 }}
+                  tick={{ fill: '#475569', fontSize: 9, fontWeight: 'bold' }}
                   tickFormatter={(val) => val >= 1000000 ? `${(val/1000000).toFixed(1)}jt` : val >= 1000 ? `${val/1000}rb` : val} 
                 />
                 <Tooltip 
                   formatter={(value: any) => [formatCurrency(value), 'Simpanan']}
-                  contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ border: '2px solid #0f172a', borderRadius: '12px', boxShadow: '4px 4px 0px 0px #0f172a' }}
                 />
                 <Bar dataKey="total" radius={[6, 6, 0, 0]} name="Dana Ditabung">
                   {classSavingsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#0f172a" strokeWidth={1} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-50 text-center mt-auto" id="class-chart-stats">
+          <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100 text-center mt-auto" id="class-chart-stats">
             {classSavingsData.slice(0, 3).map((item, idx) => (
-              <div key={idx} className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">{item.grade}</p>
-                <p className="text-xs font-bold text-slate-700 font-mono mt-0.5">{formatCurrency(item.total)}</p>
-                <p className="text-[9px] text-slate-400 mt-0.2">{item.count} siswa</p>
+              <div key={idx} className="p-2 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-[10px] font-extrabold text-indigo-650 tracking-wide uppercase">{item.grade}</p>
+                <p className="text-xs font-black text-slate-800 font-mono mt-0.5">{formatCurrency(item.total)}</p>
+                <p className="text-[9px] text-slate-400 font-semibold">{item.count} siswa</p>
               </div>
             ))}
           </div>
@@ -483,23 +483,23 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" id="dashboard-bottom-grid">
         
         {/* Top Penabung (Leaderboard) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col" id="leaderboard-card">
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#f59e0b] lg:col-span-2 flex flex-col" id="leaderboard-card">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-amber-500">
+            <div className="flex items-center gap-1.5 animate-bounce-gentle" style={{ animationDuration: '3s' }}>
+              <span className="text-amber-500 bg-amber-100 p-1 rounded-lg border border-amber-300">
                 <Trophy size={18} />
               </span>
-              <h2 className="text-lg font-bold text-slate-800">Top Juara Penabung</h2>
+              <h2 className="text-lg font-black text-slate-900">👑 Top Juara Penabung</h2>
             </div>
             <button 
               id="view-all-students-from-leaderboard"
               onClick={() => onNavigateToTab('students')}
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-slate-950 hover:text-white rounded-lg border-2 border-slate-900 hover:shadow-[2px_2px_0px_0px_#000] cursor-pointer transition-all duration-150"
             >
               Semua Siswa
             </button>
           </div>
-          <p className="text-xs text-slate-400 mb-4">Apresiasi khusus siswa-siswi yang paling tekun menyimpan uang jajan mereka.</p>
+          <p className="text-xs text-slate-500 font-semibold mb-4">Apresiasi khusus siswa-siswi yang paling tekun menyimpan uang jajan mereka.</p>
           
           <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px]" id="leaderboard-list">
             {topSavers.map((s, index) => {
@@ -512,22 +512,22 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                   key={s.id} 
                   id={`top-saver-item-${s.id}`}
                   onClick={() => onViewStudent(s)}
-                  className="p-3 bg-slate-50/50 hover:bg-slate-50 rounded-xl border border-slate-100/60 flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01]"
+                  className="p-3 bg-slate-50/50 hover:bg-slate-50 rounded-xl border-2 border-slate-200 flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01]"
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`w-6 h-6 flex items-center justify-center rounded-lg text-xs font-bold ${
-                      index === 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' :
-                      index === 1 ? 'bg-slate-200 text-slate-800' :
-                      index === 2 ? 'bg-amber-50 text-amber-900' :
-                      'text-slate-400'
+                    <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-black border ${
+                      index === 0 ? 'bg-amber-100 text-amber-850 border-amber-400 shadow-[2px_2px_0px_0px_rgba(245,158,11,1)]' :
+                      index === 1 ? 'bg-slate-200 text-slate-800 border-slate-350' :
+                      index === 2 ? 'bg-amber-50 text-amber-900 border-amber-200' :
+                      'text-slate-400 border-slate-200'
                     }`}>
                       {index + 1}
                     </span>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-700 line-clamp-1">{s.name}</h4>
+                      <h4 className="text-sm font-bold text-slate-800 line-clamp-1">{s.name}</h4>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-slate-400">NIS: {s.nis}</span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${badge.bg} ${badge.text} ${badge.border}`}>
+                        <span className="text-[10px] text-slate-400 font-bold">NIS: {s.nis}</span>
+                        <span className={`text-[9px] font-black px-1.5 py-0.2 rounded border ${badge.bg} ${badge.text} ${badge.border}`}>
                           Kls {s.grade}
                         </span>
                       </div>
@@ -535,12 +535,12 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                   </div>
 
                   <div className="text-right">
-                    <p className="text-sm font-bold text-slate-800 font-mono">{formatCurrency(s.balance)}</p>
-                    <div className="w-24 bg-slate-200 h-1.5 rounded-full mt-1 overflow-hidden ml-auto">
+                    <p className="text-sm font-black text-slate-900 font-mono">{formatCurrency(s.balance)}</p>
+                    <div className="w-24 bg-slate-200 h-1.5 rounded-full mt-1 overflow-hidden ml-auto border border-slate-300">
                       <div 
                         className={`h-full rounded-full ${
                           index === 0 ? 'bg-amber-500' : 
-                          index === 1 ? 'bg-slate-500' : 
+                          index === 1 ? 'bg-slate-400' : 
                           'bg-indigo-500'
                         }`}
                         style={{ width: `${ratio}%` }}
@@ -554,23 +554,23 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
         </div>
 
         {/* Riwayat Aktivitas Terbaru */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-3 flex flex-col" id="recent-activities-card">
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#10b981] lg:col-span-3 flex flex-col" id="recent-activities-card">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-indigo-600">
+            <div className="flex items-center gap-1.5 animate-bounce-gentle" style={{ animationDuration: '4s' }}>
+              <span className="text-emerald-600 bg-emerald-50 p-1 rounded-lg border border-emerald-250">
                 <Clock size={18} />
               </span>
-              <h2 className="text-lg font-bold text-slate-800">Aktivitas Transaksi Terbaru</h2>
+              <h2 className="text-lg font-black text-slate-900">🕒 Aktivitas Transaksi Terbaru</h2>
             </div>
             <button 
               id="view-all-rekap-from-dashboard"
               onClick={() => onNavigateToTab('rekap')}
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-slate-950 hover:text-white rounded-lg border-2 border-slate-900 hover:shadow-[2px_2px_0px_0px_#000] cursor-pointer transition-all duration-150"
             >
               Semua Log
             </button>
           </div>
-          <p className="text-xs text-slate-400 mb-4">Catatan langsung transaksi setor dan tarik tunai tabungan hari ini.</p>
+          <p className="text-xs text-slate-500 font-semibold mb-4">Catatan langsung transaksi setor dan tarik tunai tabungan hari ini.</p>
           
           <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px]" id="recent-activities-list">
             {recentTransactions.length === 0 ? (
@@ -583,31 +583,31 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
                 const badge = getClassBadgeStyle(t.studentGrade);
                 const isSetor = t.type === 'SETOR';
                 const timeString = new Date(t.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
+ 
                 return (
-                  <div key={t.id} className="p-3 bg-white hover:bg-slate-50/80 rounded-xl border border-slate-100 flex items-center justify-between gap-3 transition-colors">
+                  <div key={t.id} className="p-3 bg-white hover:bg-slate-50/80 rounded-xl border-2 border-slate-200 flex items-center justify-between gap-3 transition-all duration-75">
                     <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 flex items-center justify-center rounded-xl text-sm font-bold ${
-                        isSetor ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                      <span className={`w-8 h-8 flex items-center justify-center rounded-xl text-sm font-black border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] ${
+                        isSetor ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                       }`}>
                         {isSetor ? '+' : '-'}
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-slate-700">{t.studentName}</h4>
-                          <span className={`text-[9px] font-bold px-1.5 rounded border ${badge.bg} ${badge.text} ${badge.border}`}>
+                          <h4 className="text-sm font-bold text-slate-800">{t.studentName}</h4>
+                          <span className={`text-[9px] font-black px-1.5 rounded border ${badge.bg} ${badge.text} ${badge.border}`}>
                             Kls {t.studentGrade}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[200px] sm:max-w-xs">{t.notes || (isSetor ? 'Menabung' : 'Penarikan Dana')}</p>
+                        <p className="text-xs text-slate-400 font-semibold mt-0.5 truncate max-w-[200px] sm:max-w-xs">{t.notes || (isSetor ? 'Menabung' : 'Penarikan Dana')}</p>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <p className={`text-sm font-bold font-mono ${isSetor ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <p className={`text-sm font-black font-mono ${isSetor ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {isSetor ? '+' : '-'}{formatCurrency(t.amount)}
                       </p>
-                      <span className="text-[10px] text-slate-400 font-medium">pukul {timeString} WIB</span>
+                      <span className="text-[10px] text-slate-400 font-bold">pukul {timeString} WIB</span>
                     </div>
                   </div>
                 );
