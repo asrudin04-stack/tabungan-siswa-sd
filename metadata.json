@@ -1,0 +1,6 @@
+{
+  "name": "Tabungan Siswa SD",
+  "description": "Aplikasi kasir tabungan siswa Sekolah Dasar dengan fitur setoran, penarikan, rekapitulasi bulanan otomatis, serta dashboard analitik visual yang dinamis dan elegan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
