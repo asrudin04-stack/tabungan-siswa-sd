@@ -81,20 +81,94 @@
 
 /* Custom print media styles for printable reports and receipts */
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 15mm 12mm;
+  }
+
+  html, body {
     background-color: white !important;
     color: black !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    font-size: 11pt !important;
   }
-  .no-print {
+
+  /* Unrestricted layout container flows for multi-page printing */
+  #root,
+  .app-layout,
+  main,
+  #routing-stage,
+  #tab-views-renderer,
+  div[class*="flex-1"],
+  div[class*="overflow-hidden"],
+  div[class*="overflow-y-auto"] {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print,
+  #offline-state-ticker,
+  #desktop-sidebar,
+  #mobile-header,
+  #desktop-top-header,
+  #applet-footer,
+  #mobile-routing-nav {
     display: none !important;
   }
+
   .print-only {
     display: block !important;
   }
+
+  /* Specific table and border styling for crisp print rendering */
+  table {
+    page-break-inside: auto;
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  th, td {
+    border: 1px solid #475569 !important;
+    padding: 6px 8px !important;
+    color: #000000 !important;
+  }
+
+  /* Retain signature layout rows together */
+  .grid-cols-2 {
+    display: grid !important;
+    grid-template-cols: 1fr 1fr !important;
+    page-break-inside: avoid !important;
+  }
+
   .print-card {
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid #000000 !important;
     box-shadow: none !important;
     background: transparent !important;
+    color: black !important;
   }
 }
 

@@ -446,7 +446,7 @@ export default function RekapBulanan({
           {/* Laporan Title */}
           <div className="text-center pt-3 space-y-1 font-sans">
             <h2 className="text-base font-extrabold text-slate-900 tracking-tight uppercase">
-              LAPORAN REKAPITULASI TABUNGAN HADIRIN SISWA
+              LAPORAN REKAPITULASI JURNAL TABUNGAN SISWA
             </h2>
             <p className="text-xs font-mono text-slate-600">
               Periode Dokumen: {filterMonth === 'ALL' ? 'Seluruh Masa Riwayat' : getIndonesianMonthYear(filterMonth)}
