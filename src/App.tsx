@@ -9,7 +9,8 @@ import {
   Calendar,
   School,
   LogOut,
-  Info
+  Info,
+  Sliders
 } from 'lucide-react';
 import { Student, Transaction } from './types';
 import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS } from './data/mockData';
@@ -20,6 +21,7 @@ import Dashboard from './components/Dashboard';
 import Cashier from './components/Cashier';
 import StudentList from './components/StudentList';
 import RekapBulanan from './components/RekapBulanan';
+import Settings from './components/Settings';
 
 const LOCAL_STORAGE_KEY_STUDENTS = 'sd_pintar_students_v1';
 const LOCAL_STORAGE_KEY_TRANSACTIONS = 'sd_pintar_transactions_v1';
