@@ -18,7 +18,8 @@ import {
   Smartphone,
   Save,
   HelpCircle,
-  AlertCircle
+  AlertCircle,
+  Database
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, formatDate, getClassBadgeStyle } from '../utils';
@@ -31,6 +32,7 @@ interface StudentListProps {
   onDeleteStudent: (id: string) => void;
   preSelectedStudent: Student | null; // Selected student from dashboard click
   onClosePreSelection: () => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export default function StudentList({ 
@@ -40,7 +42,8 @@ export default function StudentList({
   onEditStudent, 
   onDeleteStudent,
   preSelectedStudent,
-  onClosePreSelection
+  onClosePreSelection,
+  onNavigateToTab
 }: StudentListProps) {
   // Navigation / filtering states
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,6 +279,16 @@ export default function StudentList({
           >
             <UserPlus size={15} /> Siswa Baru
           </button>
+
+          {onNavigateToTab && (
+            <button
+              id="import-export-student-link"
+              onClick={() => onNavigateToTab('settings')}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-250 cursor-pointer"
+            >
+              <Database size={15} className="text-indigo-600" /> Impor / Ekspor
+            </button>
+          )}
         </div>
       </div>
 

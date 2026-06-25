@@ -184,6 +184,48 @@ export default function App() {
     saveStateToStorage([], []);
   };
 
+  // Bulk Import Students Helper
+  const handleBulkImportStudents = (
+    newStudentsList: Array<Omit<Student, 'id' | 'createdAt' | 'balance'> & { initialDeposit: number }>
+  ) => {
+    let updatedStudents = [...students];
+    let updatedTransactions = [...transactions];
+    const timestamp = new Date().toISOString();
+
+    newStudentsList.forEach((item, index) => {
+      const studentId = `s-bulk-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`;
+      const newStudent: Student = {
+        name: item.name,
+        grade: item.grade,
+        nis: item.nis,
+        parentName: item.parentName || undefined,
+        phone: item.phone || undefined,
+        id: studentId,
+        balance: item.initialDeposit,
+        createdAt: timestamp
+      };
+      updatedStudents.push(newStudent);
+
+      if (item.initialDeposit > 0) {
+        const txId = `t-setor-init-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`;
+        const firstTx: Transaction = {
+          id: txId,
+          studentId: studentId,
+          studentName: item.name,
+          studentGrade: item.grade,
+          type: 'SETOR',
+          amount: item.initialDeposit,
+          date: timestamp,
+          notes: 'Setoran Awal (Impor Massal)',
+          recordedBy: 'Sistem Registrasi'
+        };
+        updatedTransactions = [firstTx, ...updatedTransactions];
+      }
+    });
+
+    saveStateToStorage(updatedStudents, updatedTransactions);
+  };
+
   // Cross-component navigations (e.g., clicking top saver goes to student ledger card)
   const handleViewStudentFromDashboard = (student: Student) => {
     setDashboardSelectedStudent(student);
@@ -261,6 +303,18 @@ export default function App() {
               <FileSpreadsheet size={15} />
               <span>Jurnal Rekap</span>
             </button>
+            <button
+              id="nav-btn-sidebar-settings"
+              onClick={() => { setActiveTab('settings'); }}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-bold text-xs tracking-wide transition-all cursor-pointer ${
+                activeTab === 'settings' 
+                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/70'
+              }`}
+            >
+              <Sliders size={15} />
+              <span>Pengaturan & Data</span>
+            </button>
           </nav>
         </div>
 
@@ -309,6 +363,7 @@ export default function App() {
               {activeTab === 'cashier' && 'Transaksi Tabungan Siswa'}
               {activeTab === 'students' && 'Manajemen Akun Siswa'}
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}
+              {activeTab === 'settings' && 'Pengaturan Aplikasi & Impor Massal'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Hai, Admin Operasional • SD NEGERI 1 GEMBLENGAN • Kas Terbuka</p>
           </div>
@@ -373,6 +428,7 @@ export default function App() {
                 onDeleteStudent={handleDeleteStudent}
                 preSelectedStudent={dashboardSelectedStudent}
                 onClosePreSelection={() => setDashboardSelectedStudent(null)}
+                onNavigateToTab={(tab) => setActiveTab(tab)}
               />
             )}
 
@@ -382,6 +438,17 @@ export default function App() {
                 transactions={transactions}
                 onImportData={handleImportData}
                 onClearDatabase={handleClearDatabase}
+              />
+            )}
+
+            {activeTab === 'settings' && (
+              <Settings 
+                students={students}
+                transactions={transactions}
+                onImportData={handleImportData}
+                onClearDatabase={handleClearDatabase}
+                onAddStudent={handleAddStudent}
+                onBulkImportStudents={handleBulkImportStudents}
               />
             )}
           </div>
@@ -443,6 +510,16 @@ export default function App() {
         >
           <FileSpreadsheet size={18} />
           <span className="text-[9px] mt-1">Rekap</span>
+        </button>
+        <button
+          id="mob-btn-settings"
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+            activeTab === 'settings' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <Sliders size={18} />
+          <span className="text-[9px] mt-1">Pengaturan</span>
         </button>
       </div>
 
