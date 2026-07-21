@@ -10,11 +10,27 @@ import {
   School,
   LogOut,
   Info,
-  Sliders
+  Sliders,
+  Cloud,
+  CloudLightning,
+  CloudOff
 } from 'lucide-react';
 import { Student, Transaction } from './types';
 import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS } from './data/mockData';
 import { formatDate } from './utils';
+
+// Import Firebase references
+import { onSnapshot, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { 
+  db, 
+  studentsColRef, 
+  transactionsColRef, 
+  saveStudentToCloud, 
+  deleteStudentFromCloud, 
+  saveTransactionToCloud, 
+  uploadBulkToCloud, 
+  clearAllCloudDatabase 
+} from './firebase';
 
 // Import components
 import Dashboard from './components/Dashboard';
@@ -34,43 +50,100 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
+  // Cloud Sync Statuses
+  const [loadingCloud, setLoadingCloud] = useState<boolean>(true);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error'>('synced');
+
   // UX Cross-communication triggers: transition student reference from dashboard click to students tab
   const [dashboardSelectedStudent, setDashboardSelectedStudent] = useState<Student | null>(null);
 
-  // Load from local storage or fallback to mock seed data on start
+  // 1. Initial Cloud Data Check and Migration
   useEffect(() => {
-    try {
-      const storedStudents = localStorage.getItem(LOCAL_STORAGE_KEY_STUDENTS);
-      const storedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY_TRANSACTIONS);
+    const initializeCloudData = async () => {
+      try {
+        setLoadingCloud(true);
+        // Check if students collection in Firestore already has data
+        const studentsSnapshot = await getDocs(studentsColRef);
+        
+        if (studentsSnapshot.empty) {
+          console.log('Cloud database is empty. Performing initial migration...');
+          setSyncStatus('saving');
 
-      if (storedStudents && storedTransactions) {
-        setStudents(JSON.parse(storedStudents));
-        setTransactions(JSON.parse(storedTransactions));
-      } else {
-        // First-load bootstrap
-        setStudents(INITIAL_STUDENTS);
-        setTransactions(INITIAL_TRANSACTIONS);
-        localStorage.setItem(LOCAL_STORAGE_KEY_STUDENTS, JSON.stringify(INITIAL_STUDENTS));
-        localStorage.setItem(LOCAL_STORAGE_KEY_TRANSACTIONS, JSON.stringify(INITIAL_TRANSACTIONS));
+          // Check if we have pre-existing localStorage to migrate
+          const storedStudents = localStorage.getItem(LOCAL_STORAGE_KEY_STUDENTS);
+          const storedTransactions = localStorage.getItem(LOCAL_STORAGE_KEY_TRANSACTIONS);
+
+          let studentsToMigrate = INITIAL_STUDENTS;
+          let transactionsToMigrate = INITIAL_TRANSACTIONS;
+
+          if (storedStudents && storedTransactions) {
+            try {
+              const parsedStudents = JSON.parse(storedStudents);
+              const parsedTransactions = JSON.parse(storedTransactions);
+              if (parsedStudents && parsedStudents.length > 0) {
+                studentsToMigrate = parsedStudents;
+                transactionsToMigrate = parsedTransactions;
+              }
+            } catch (e) {
+              console.error('Failed to parse existing localStorage data for migration:', e);
+            }
+          }
+
+          // Perform bulk insert to Cloud
+          await uploadBulkToCloud(studentsToMigrate, transactionsToMigrate);
+          console.log('Initial cloud migration completed successfully!');
+        }
+        setSyncStatus('synced');
+      } catch (error) {
+        console.error('Error during initial cloud initialization:', error);
+        setSyncStatus('error');
+      } finally {
+        setLoadingCloud(false);
       }
-    } catch (error) {
-      console.error('Failed to parse storage, populating mock seeds...', error);
-      setStudents(INITIAL_STUDENTS);
-      setTransactions(INITIAL_TRANSACTIONS);
-    }
+    };
+
+    initializeCloudData();
   }, []);
 
-  // Save changes helper to persistent layer
-  const saveStateToStorage = (updatedStudents: Student[], updatedTransactions: Transaction[]) => {
-    try {
-      setStudents(updatedStudents);
-      setTransactions(updatedTransactions);
-      localStorage.setItem(LOCAL_STORAGE_KEY_STUDENTS, JSON.stringify(updatedStudents));
-      localStorage.setItem(LOCAL_STORAGE_KEY_TRANSACTIONS, JSON.stringify(updatedTransactions));
-    } catch (e) {
-      alert('Gagal menyimpan perubahan ke browser: ' + e);
-    }
-  };
+  // 2. Real-time subscriptions for auto-sync
+  useEffect(() => {
+    setSyncStatus('saving');
+    
+    // Subscribe to students list
+    const unsubscribeStudents = onSnapshot(studentsColRef, (snapshot) => {
+      const cloudStudents: Student[] = [];
+      snapshot.forEach((docSnap) => {
+        cloudStudents.push(docSnap.data() as Student);
+      });
+      setStudents(cloudStudents);
+      localStorage.setItem(LOCAL_STORAGE_KEY_STUDENTS, JSON.stringify(cloudStudents));
+      setSyncStatus('synced');
+    }, (error) => {
+      console.error('Firestore students subscription error:', error);
+      setSyncStatus('error');
+    });
+
+    // Subscribe to transactions list
+    const unsubscribeTransactions = onSnapshot(transactionsColRef, (snapshot) => {
+      const cloudTxs: Transaction[] = [];
+      snapshot.forEach((docSnap) => {
+        cloudTxs.push(docSnap.data() as Transaction);
+      });
+      // Sort descending by date
+      cloudTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setTransactions(cloudTxs);
+      localStorage.setItem(LOCAL_STORAGE_KEY_TRANSACTIONS, JSON.stringify(cloudTxs));
+      setSyncStatus('synced');
+    }, (error) => {
+      console.error('Firestore transactions subscription error:', error);
+      setSyncStatus('error');
+    });
+
+    return () => {
+      unsubscribeStudents();
+      unsubscribeTransactions();
+    };
+  }, []);
 
   // --- BUSINESS LOGIC HANDLERS ---
 
@@ -86,21 +159,29 @@ export default function App() {
       date: timestamp
     };
 
+    setSyncStatus('saving');
+
     // Calculate student balance adjustment
-    const updatedStudents = students.map((s) => {
-      if (s.id === newTxData.studentId) {
-        const delta = newTxData.type === 'SETOR' ? newTxData.amount : -newTxData.amount;
-        return {
-          ...s,
-          balance: s.balance + delta
-        };
-      }
-      return s;
-    });
+    const targetStudent = students.find(s => s.id === newTxData.studentId);
+    if (targetStudent) {
+      const delta = newTxData.type === 'SETOR' ? newTxData.amount : -newTxData.amount;
+      const updatedStudent: Student = {
+        ...targetStudent,
+        balance: targetStudent.balance + delta
+      };
+      
+      // Save updated student profile and new transaction to Firestore in parallel
+      Promise.all([
+        saveStudentToCloud(updatedStudent),
+        saveTransactionToCloud(newTx)
+      ]).then(() => {
+        setSyncStatus('synced');
+      }).catch((e) => {
+        console.error('Failed to save transaction to cloud:', e);
+        setSyncStatus('error');
+      });
+    }
 
-    const updatedTransactions = [newTx, ...transactions];
-
-    saveStateToStorage(updatedStudents, updatedTransactions);
     return newTx;
   };
 
@@ -119,8 +200,9 @@ export default function App() {
       createdAt: timestamp
     };
 
-    const updatedStudents = [...students, newStudent];
-    let updatedTransactions = [...transactions];
+    setSyncStatus('saving');
+
+    const promises: Promise<any>[] = [saveStudentToCloud(newStudent)];
 
     // If an initial deposit is provided, automatically record first setoran log
     if (initialDeposit > 0) {
@@ -136,61 +218,96 @@ export default function App() {
         notes: 'Setoran Awal Akun Baru',
         recordedBy: 'Sistem Registrasi'
       };
-      updatedTransactions = [firstTx, ...updatedTransactions];
+      promises.push(saveTransactionToCloud(firstTx));
     }
 
-    saveStateToStorage(updatedStudents, updatedTransactions);
+    Promise.all(promises).then(() => {
+      setSyncStatus('synced');
+    }).catch((e) => {
+      console.error('Failed to save student to cloud:', e);
+      setSyncStatus('error');
+    });
+
     return newStudent;
   };
 
   // Edit Student profile parameters
-  const handleEditStudent = (id: string, updatedFields: Partial<Omit<Student, 'id' | 'createdAt' | 'balance'>>) => {
-    const updatedStudents = students.map((s) => {
-      if (s.id === id) {
-        return { ...s, ...updatedFields };
-      }
-      return s;
-    });
+  const handleEditStudent = async (id: string, updatedFields: Partial<Omit<Student, 'id' | 'createdAt' | 'balance'>>) => {
+    const studentToEdit = students.find(s => s.id === id);
+    if (!studentToEdit) return;
 
-    // Also update student names across historical logs for consistency
-    const updatedTransactions = transactions.map((t) => {
-      if (t.studentId === id) {
-        return {
-          ...t,
-          studentName: updatedFields.name || t.studentName,
-          studentGrade: updatedFields.grade || t.studentGrade
-        };
-      }
-      return t;
-    });
+    setSyncStatus('saving');
 
-    saveStateToStorage(updatedStudents, updatedTransactions);
+    const updatedStudent: Student = { ...studentToEdit, ...updatedFields };
+
+    try {
+      // 1. Update the student document in Firestore
+      await saveStudentToCloud(updatedStudent);
+
+      // 2. Update associated transaction logs to preserve name and grade consistency
+      const transactionsToUpdate = transactions.filter(t => t.studentId === id);
+      if (transactionsToUpdate.length > 0) {
+        const batch = writeBatch(db);
+        transactionsToUpdate.forEach((t) => {
+          const docRef = doc(db, 'transactions', t.id);
+          batch.update(docRef, {
+            studentName: updatedFields.name || t.studentName,
+            studentGrade: updatedFields.grade || t.studentGrade
+          });
+        });
+        await batch.commit();
+      }
+      setSyncStatus('synced');
+    } catch (e) {
+      console.error('Failed to edit student profile:', e);
+      setSyncStatus('error');
+    }
   };
 
   // Delete Student Profile (Deletes student and purges all logs)
   const handleDeleteStudent = (id: string) => {
-    const updatedStudents = students.filter(s => s.id !== id);
-    const updatedTransactions = transactions.filter(t => t.studentId !== id);
-    saveStateToStorage(updatedStudents, updatedTransactions);
+    setSyncStatus('saving');
+    deleteStudentFromCloud(id).then(() => {
+      setSyncStatus('synced');
+    }).catch((e) => {
+      console.error('Failed to delete student from cloud:', e);
+      setSyncStatus('error');
+    });
   };
 
   // Master Restore/Import helper
   const handleImportData = (importedStudents: Student[], importedTransactions: Transaction[]) => {
-    saveStateToStorage(importedStudents, importedTransactions);
+    setSyncStatus('saving');
+    clearAllCloudDatabase().then(() => {
+      return uploadBulkToCloud(importedStudents, importedTransactions);
+    }).then(() => {
+      setSyncStatus('synced');
+    }).catch((e) => {
+      console.error('Failed to restore data to cloud:', e);
+      setSyncStatus('error');
+      alert('Gagal memulihkan data: ' + e);
+    });
   };
 
   // Wipe / Reset Database state entirely
   const handleClearDatabase = () => {
-    saveStateToStorage([], []);
+    setSyncStatus('saving');
+    clearAllCloudDatabase().then(() => {
+      setSyncStatus('synced');
+    }).catch((e) => {
+      console.error('Failed to clear database on cloud:', e);
+      setSyncStatus('error');
+    });
   };
 
   // Bulk Import Students Helper
   const handleBulkImportStudents = (
     newStudentsList: Array<Omit<Student, 'id' | 'createdAt' | 'balance'> & { initialDeposit: number }>
   ) => {
-    let updatedStudents = [...students];
-    let updatedTransactions = [...transactions];
+    setSyncStatus('saving');
     const timestamp = new Date().toISOString();
+    const batchStudents: Student[] = [];
+    const batchTransactions: Transaction[] = [];
 
     newStudentsList.forEach((item, index) => {
       const studentId = `s-bulk-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`;
@@ -204,7 +321,7 @@ export default function App() {
         balance: item.initialDeposit,
         createdAt: timestamp
       };
-      updatedStudents.push(newStudent);
+      batchStudents.push(newStudent);
 
       if (item.initialDeposit > 0) {
         const txId = `t-setor-init-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`;
@@ -219,11 +336,16 @@ export default function App() {
           notes: 'Setoran Awal (Impor Massal)',
           recordedBy: 'Sistem Registrasi'
         };
-        updatedTransactions = [firstTx, ...updatedTransactions];
+        batchTransactions.push(firstTx);
       }
     });
 
-    saveStateToStorage(updatedStudents, updatedTransactions);
+    uploadBulkToCloud(batchStudents, batchTransactions).then(() => {
+      setSyncStatus('synced');
+    }).catch((e) => {
+      console.error('Failed to bulk import to cloud:', e);
+      setSyncStatus('error');
+    });
   };
 
   // Cross-component navigations (e.g., clicking top saver goes to student ledger card)
@@ -247,7 +369,7 @@ export default function App() {
               <School size={20} />
             </div>
             <div>
-              <span className="text-base font-extrabold tracking-tight text-slate-900 leading-none block">SD Pintar</span>
+              <span className="text-sm font-extrabold tracking-tight text-slate-900 leading-none block">SDN 1 Gemblengan</span>
               <span className="text-[10px] font-bold text-indigo-650 tracking-wider uppercase block mt-1.5">Transaksi Tabungan</span>
             </div>
           </div>
@@ -325,8 +447,10 @@ export default function App() {
             <p className="text-[9px] opacity-80 uppercase tracking-widest font-extrabold mb-1">Status Operasional</p>
             <p className="text-xs font-bold truncate">SD NEGERI 1 GEMBLENGAN</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[9px] text-slate-100 font-medium">Buku Kas Luring</span>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${syncStatus === 'error' ? 'bg-rose-400' : 'bg-emerald-400'}`} />
+              <span className="text-[9px] text-slate-100 font-medium">
+                {syncStatus === 'error' ? 'Cloud Terputus (Luring)' : 'Tersinkronisasi Cloud'}
+              </span>
             </div>
           </div>
         </div>
@@ -340,12 +464,12 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xs font-black tracking-tight text-slate-900 leading-tight">SD NEGERI 1 GEMBLENGAN</h1>
-            <p className="text-[10px] text-indigo-600 font-medium tracking-wide uppercase">Tabungan SD Pintar</p>
+            <p className="text-[10px] text-indigo-600 font-medium tracking-wide uppercase">Tabungan Kelas 5</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => alert('Sesi Transaksi SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
+            onClick={() => alert('Sesi Transaksi SD Negeri 1 Gemblengan telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
             className="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 border border-slate-200 rounded-lg"
           >
             <LogOut size={14} />
@@ -377,7 +501,7 @@ export default function App() {
             <div className="h-8 w-px bg-slate-200" />
             <button 
               id="logout-btn-mock-sidebar"
-              onClick={() => alert('Sesi Transaksi SD Pintar telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
+              onClick={() => alert('Sesi Transaksi SD Negeri 1 Gemblengan telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
               className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               title="Lock Session"
             >
@@ -389,14 +513,43 @@ export default function App() {
         {/* 4. MAIN INNER SCROLLER CONTENT */}
         <main className="flex-1 overflow-y-auto w-full p-4 md:p-6 lg:p-8 pb-24 lg:pb-12 h-full bg-slate-50" id="routing-stage">
           
-          {/* Offline status notification banner for high craft */}
-          <div className="bg-slate-905 bg-slate-900 border border-slate-800 text-slate-100 p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs no-print text-xs" id="offline-state-ticker">
+          {/* Cloud Synchronization Status notification banner */}
+          <div className={`border p-3.5 rounded-2xl mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs no-print text-xs transition-all duration-300 ${
+            syncStatus === 'error' 
+              ? 'bg-rose-50 border-rose-200 text-rose-800' 
+              : syncStatus === 'saving'
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-indigo-900 border-indigo-950 text-indigo-50'
+          }`} id="cloud-sync-state-ticker">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block shrink-0" />
-              <span><strong>Mode Lokasi Aktif:</strong> Laporan disimpan langsung di browser lokal Anda. Tenang, data aman walau internet terputus!</span>
+              {syncStatus === 'error' ? (
+                <CloudOff size={16} className="text-rose-500 animate-pulse shrink-0" />
+              ) : syncStatus === 'saving' ? (
+                <CloudLightning size={16} className="text-amber-500 animate-bounce shrink-0" />
+              ) : (
+                <Cloud size={16} className="text-sky-300 animate-pulse shrink-0" />
+              )}
+              
+              <span>
+                {syncStatus === 'error' && (
+                  <><strong>Mode Offline:</strong> Gagal terhubung ke Cloud. Data dicadangkan sementara di browser ini secara aman.</>
+                )}
+                {syncStatus === 'saving' && (
+                  <><strong>Menyinkronkan:</strong> Sedang memperbarui laporan ke database Cloud secara real-time...</>
+                )}
+                {syncStatus === 'synced' && (
+                  <><strong>Penyimpanan Otomatis:</strong> Data siswa & jurnal kas tersinkronisasi otomatis dengan database Cloud Firebase!</>
+                )}
+              </span>
             </div>
-            <p className="font-mono text-[10px] text-indigo-300 font-semibold bg-slate-950 border border-slate-850 px-2.5 py-1 rounded-lg w-fit">
-              DB: {students.length} Siswa | {transactions.length} Jurnal
+            <p className={`font-mono text-[10px] font-semibold border px-2.5 py-1 rounded-lg w-fit ${
+              syncStatus === 'error' 
+                ? 'bg-rose-100 border-rose-300 text-rose-800' 
+                : syncStatus === 'saving'
+                ? 'bg-amber-100 border-amber-300 text-amber-850'
+                : 'bg-indigo-950 border-indigo-800 text-sky-200'
+            }`}>
+              {loadingCloud ? 'Memuat Database...' : `Cloud DB: ${students.length} Siswa | ${transactions.length} Jurnal`}
             </p>
           </div>
 
@@ -458,7 +611,7 @@ export default function App() {
             <div className="text-xs space-y-1.5 text-slate-400">
               <div className="flex justify-center items-center gap-1 font-semibold text-slate-500 text-[11px]">
                 <School size={12} className="text-indigo-600" />
-                <span>Sistem SD Pintar Tabungan Siswa v1.0.0</span>
+                <span>Sistem Tabungan Siswa SDN 1 Gemblengan v1.0.0</span>
               </div>
               <p>Didesain khusus untuk operasional guru sekolah dasar demi melatih kedisiplinan menabung anak sejak dini.</p>
               <p className="text-[10px] flex items-center justify-center gap-1 pt-1 font-mono">

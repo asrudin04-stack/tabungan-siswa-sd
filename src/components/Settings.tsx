@@ -47,9 +47,9 @@ export default function Settings({
   // Raw bulk-import tab & text area states
   const [importMode, setImportMode] = useState<'TEXT' | 'FILE_JSON'>('TEXT');
   const [rawPasteText, setRawPasteText] = useState(
-    "Fadhil Ramadhan, 1A, 12001, Sunarto, 0812345678, 50000\n" +
-    "Siti Aminah, 1A, 12002, Ahmad Yani, 0812999911, 20000\n" +
-    "Reza Rahadian, 1B, 12003, Bambang Tri, 0813888822, 0"
+    "Ahmad Rafli, 5A, 12001, Sunarto, 0812345678, 50000\n" +
+    "Siti Aminah, 5A, 12002, Ahmad Yani, 0812999911, 20000\n" +
+    "Reza Rahadian, 5B, 12003, Bambang Tri, 0813888822, 0"
   );
   const [parsedPreviewList, setParsedPreviewList] = useState<Array<{
     name: string;
@@ -75,7 +75,7 @@ export default function Settings({
 
     // Valid Grade classes lookup map helper
     const validGrades: GradeClass[] = [
-      '1A', '1B', '2A', '2B', '3A', '3B', '4A', '4B', '5A', '5B', '6A', '6B'
+      '5A', '5B'
     ];
 
     lines.forEach((line, index) => {
@@ -101,23 +101,16 @@ export default function Settings({
         return; // skip matching header rows safely
       }
 
-      // Fallback grade resolution (e.g. "1" to "1A", "Grade 2" to "2A", etc.)
-      let resolvedGrade: GradeClass = '1A';
+      // Fallback grade resolution (e.g. default to 5A/5B)
+      let resolvedGrade: GradeClass = '5A';
       let gradeNormalized = gradeInput.toUpperCase().replace(/\s/g, '');
       
       if (validGrades.includes(gradeNormalized as GradeClass)) {
         resolvedGrade = gradeNormalized as GradeClass;
       } else {
-        // Look for digit
-        const digitMatch = gradeNormalized.match(/[1-6]/);
-        if (digitMatch) {
-          const number = digitMatch[0];
-          // Try matching letters A or B
-          const isB = gradeNormalized.includes('B');
-          resolvedGrade = `${number}${isB ? 'B' : 'A'}` as GradeClass;
-        } else {
-          resolvedGrade = '1A'; // final fallback
-        }
+        // Try matching letters A or B
+        const isB = gradeNormalized.includes('B');
+        resolvedGrade = isB ? '5B' : '5A';
       }
 
       // Convert deposit cleanly
@@ -191,7 +184,7 @@ export default function Settings({
   const handleExportSystemBackup = () => {
     try {
       const backupData = {
-        app: 'Tabungan Siswa SD Pintar',
+        app: 'Tabungan Siswa SD Negeri 1 Gemblengan',
         version: '1.0.0',
         exportedAt: new Date().toISOString(),
         students,

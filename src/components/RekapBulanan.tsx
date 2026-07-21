@@ -107,7 +107,7 @@ export default function RekapBulanan({
   const handleExportBackup = () => {
     try {
       const backupData = {
-        app: 'Tabungan Siswa SD Pintar',
+        app: 'Tabungan Siswa SD Negeri 1 Gemblengan',
         version: '1.0.0',
         exportedAt: new Date().toISOString(),
         students,
@@ -284,13 +284,9 @@ export default function RekapBulanan({
             onChange={(e) => setFilterGrade(e.target.value)}
             className="bg-transparent focus:outline-none pr-2 cursor-pointer"
           >
-            <option value="ALL">Semua Tingkat</option>
-            <option value="1">Kelas 1</option>
-            <option value="2">Kelas 2</option>
-            <option value="3">Kelas 3</option>
-            <option value="4">Kelas 4</option>
-            <option value="5">Kelas 5</option>
-            <option value="6">Kelas 6</option>
+            <option value="ALL">Semua Kelas 5</option>
+            <option value="5A">Kelas 5A</option>
+            <option value="5B">Kelas 5B</option>
           </select>
         </div>
 
@@ -531,7 +527,7 @@ export default function RekapBulanan({
           </div>
 
           <div className="text-center text-[9px] text-slate-400 pt-16 border-t border-dashed border-slate-300 font-mono">
-            <p>Dokumen Laporan Tabungan Siswa SD NEGERI 1 GEMBLENGAN diunduh secara sah melalui Sistem Aplikasi SD Pintar.</p>
+            <p>Dokumen Laporan Tabungan Siswa SD Negeri 1 Gemblengan diunduh secara sah melalui Sistem Aplikasi.</p>
             <p>ID Berkas Laporan: RKP-{new Date().toISOString().slice(0,10).replace(/-/g,'')}-{filteredLedger.length}</p>
           </div>
 

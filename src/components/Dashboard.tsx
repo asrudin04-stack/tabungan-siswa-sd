@@ -89,20 +89,18 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
     };
   }, [students, filteredTransactions]);
 
-  // Class-wise statistics (Kelas 1 - Kelas 6)
+  // Class-wise statistics (Kelas 5A & 5B)
   const classSavingsData = useMemo(() => {
-    const classMap: Record<string, { grade: string; total: number; count: number }> = {};
-    
-    // Initialize grade groupings (1-6)
-    for (let i = 1; i <= 6; i++) {
-      classMap[String(i)] = { grade: `Kelas ${i}`, total: 0, count: 0 };
-    }
+    const classMap: Record<string, { grade: string; total: number; count: number }> = {
+      '5A': { grade: 'Kelas 5A', total: 0, count: 0 },
+      '5B': { grade: 'Kelas 5B', total: 0, count: 0 }
+    };
 
     students.forEach(s => {
-      const gradeNum = s.grade.charAt(0); // "4" from "4A"
-      if (classMap[gradeNum]) {
-        classMap[gradeNum].total += s.balance;
-        classMap[gradeNum].count += 1;
+      const g = s.grade;
+      if (classMap[g]) {
+        classMap[g].total += s.balance;
+        classMap[g].count += 1;
       }
     });
 
@@ -202,7 +200,7 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
             <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg inline-flex neo-3d-button animate-bounce-gentle">
               <Sparkles size={18} className="animate-spin" style={{ animationDuration: '6s' }} />
             </span>
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-700 font-mono">⚡ Sistem Tabungan Anak SD Pintar</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-700 font-mono">⚡ Sistem Tabungan Kelas 5 SD Negeri 1 Gemblengan</p>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-950 tracking-tight mt-1">
             Dashboard Tabungan 👋

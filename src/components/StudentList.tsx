@@ -58,7 +58,7 @@ export default function StudentList({
   const [addForm, setAddForm] = useState({
     name: '',
     nis: '',
-    grade: '1A' as GradeClass,
+    grade: '5A' as GradeClass,
     parentName: '',
     phone: '',
     initialDeposit: 0
@@ -70,7 +70,7 @@ export default function StudentList({
   // Form states for Edit Student
   const [editForm, setEditForm] = useState({
     name: '',
-    grade: '1A' as GradeClass,
+    grade: '5A' as GradeClass,
     parentName: '',
     phone: '',
   });
@@ -175,7 +175,7 @@ export default function StudentList({
       setAddForm({
         name: '',
         nis: '',
-        grade: '1A',
+        grade: '5A',
         parentName: '',
         phone: '',
         initialDeposit: 0
@@ -223,17 +223,13 @@ export default function StudentList({
   };
 
   const classTabOptions = [
-    { value: 'ALL', label: 'Semua Kelas' },
-    { value: '1', label: 'Kelas 1' },
-    { value: '2', label: 'Kelas 2' },
-    { value: '3', label: 'Kelas 3' },
-    { value: '4', label: 'Kelas 4' },
-    { value: '5', label: 'Kelas 5' },
-    { value: '6', label: 'Kelas 6' },
+    { value: 'ALL', label: 'Semua Kelas 5' },
+    { value: '5A', label: 'Kelas 5A' },
+    { value: '5B', label: 'Kelas 5B' }
   ];
 
   const gradeOptions: GradeClass[] = [
-    '1A', '1B', '2A', '2B', '3A', '3B', '4A', '4B', '5A', '5B', '6A', '6B'
+    '5A', '5B'
   ];
 
   return (
