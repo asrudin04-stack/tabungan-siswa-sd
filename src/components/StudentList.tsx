@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { 
   Users, 
   Search, 
@@ -19,7 +20,8 @@ import {
   Save,
   HelpCircle,
   AlertCircle,
-  Database
+  Database,
+  Download
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, formatDate, getClassBadgeStyle } from '../utils';
@@ -58,7 +60,7 @@ export default function StudentList({
   const [addForm, setAddForm] = useState({
     name: '',
     nis: '',
-    grade: '5A' as GradeClass,
+    grade: '5' as GradeClass,
     parentName: '',
     phone: '',
     initialDeposit: 0
@@ -70,7 +72,7 @@ export default function StudentList({
   // Form states for Edit Student
   const [editForm, setEditForm] = useState({
     name: '',
-    grade: '5A' as GradeClass,
+    grade: '5' as GradeClass,
     parentName: '',
     phone: '',
   });
@@ -134,6 +136,49 @@ export default function StudentList({
       .filter(t => t.studentId === detailedStudent.id)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [detailedStudent, transactions]);
+
+  // Handler to export individual student's ledger (Buku Tabungan) as Excel file
+  const handleExportStudentLedger = () => {
+    if (!detailedStudent) return;
+    try {
+      const wb = XLSX.utils.book_new();
+      
+      // 1. Student profile sheet
+      const profileData = [
+        { 'Detail Profil': 'Nama Lengkap', 'Nilai': detailedStudent.name },
+        { 'Detail Profil': 'NIS', 'Nilai': detailedStudent.nis },
+        { 'Detail Profil': 'Kelas', 'Nilai': `Kelas ${detailedStudent.grade}` },
+        { 'Detail Profil': 'Orang Tua / Wali', 'Nilai': detailedStudent.parentName || '-' },
+        { 'Detail Profil': 'No. Telepon', 'Nilai': detailedStudent.phone || '-' },
+        { 'Detail Profil': 'Saldo Tabungan Akhir (Rp)', 'Nilai': detailedStudent.balance },
+        { 'Detail Profil': 'Terdaftar Sejak', 'Nilai': formatDate(detailedStudent.createdAt) }
+      ];
+      const wsProfile = XLSX.utils.json_to_sheet(profileData);
+      
+      // Auto-fit profile columns
+      wsProfile['!cols'] = [{ wch: 25 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(wb, wsProfile, 'Profil Siswa');
+
+      // 2. Ledger list sheet
+      const ledgerData = [...studentTransactions].reverse().map((t, idx) => ({
+        'No': idx + 1,
+        'Tanggal Transaksi': formatDate(t.date, true),
+        'Tipe Transaksi': t.type === 'SETOR' ? 'Setoran (Kredit)' : 'Penarikan (Debit)',
+        'Jumlah Uang (Rp)': t.amount,
+        'Catatan / Keterangan': t.notes || '-',
+        'Petugas Pencatat': t.recordedBy
+      }));
+      const wsLedger = XLSX.utils.json_to_sheet(ledgerData);
+      
+      // Auto-fit ledger columns
+      wsLedger['!cols'] = [{ wch: 6 }, { wch: 22 }, { wch: 20 }, { wch: 18 }, { wch: 28 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsLedger, 'Riwayat Mutasi Buku');
+
+      XLSX.writeFile(wb, `buku-tabungan-${detailedStudent.nis}-${detailedStudent.name.replace(/\s+/g, '_')}.xlsx`);
+    } catch (e: any) {
+      alert('Gagal mengekspor riwayat mutasi siswa ke Excel: ' + e.message);
+    }
+  };
 
   // Handler to open student profile detail
   const handleOpenDetail = (student: Student) => {
@@ -223,13 +268,11 @@ export default function StudentList({
   };
 
   const classTabOptions = [
-    { value: 'ALL', label: 'Semua Kelas 5' },
-    { value: '5A', label: 'Kelas 5A' },
-    { value: '5B', label: 'Kelas 5B' }
+    { value: 'ALL', label: 'Semua Siswa Kelas 5' }
   ];
 
   const gradeOptions: GradeClass[] = [
-    '5A', '5B'
+    '5'
   ];
 
   return (
@@ -706,10 +749,22 @@ export default function StudentList({
                   )}
 
                   {/* Ledger Mutasi Section */}
-                  <div className="space-y-3.5 Pt-4 border-t border-slate-100">
-                    <h4 className="text-xs font-bold text-slate-800 tracking-wider uppercase flex items-center gap-1.5">
-                      <FileSpreadsheet size={14} className="text-indigo-600" /> Riwayat Mutasi Buku
-                    </h4>
+                  <div className="space-y-3.5 pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-800 tracking-wider uppercase flex items-center gap-1.5">
+                        <FileSpreadsheet size={14} className="text-indigo-600" /> Riwayat Mutasi Buku
+                      </h4>
+                      {studentTransactions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleExportStudentLedger}
+                          className="px-2 py-1 text-[10px] font-black text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer transition-all flex items-center gap-1"
+                          title="Ekspor buku mutasi ke Excel"
+                        >
+                          <Download size={10} className="stroke-[2.5]" /> Unduh Excel (.XLSX)
+                        </button>
+                      )}
+                    </div>
 
                     <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1" id="student-personal-ledger-list">
                       {studentTransactions.length === 0 ? (

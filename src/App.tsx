@@ -370,7 +370,7 @@ export default function App() {
             </div>
             <div>
               <span className="text-sm font-extrabold tracking-tight text-slate-900 leading-none block">SDN 1 Gemblengan</span>
-              <span className="text-[10px] font-bold text-indigo-650 tracking-wider uppercase block mt-1.5">Transaksi Tabungan</span>
+              <span className="text-[10px] font-bold text-indigo-650 tracking-wider uppercase block mt-1.5">Tabungan Kelas 5</span>
             </div>
           </div>
 

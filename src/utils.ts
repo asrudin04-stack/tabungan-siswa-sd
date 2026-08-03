@@ -68,24 +68,8 @@ export function getIndonesianMonthYear(monthYearString: string): string {
 /**
  * Assigns an elegant, school-friendly themed color badge configuration for classes 1-6
  */
-export function getClassBadgeStyle(grade: GradeClass): { bg: string; text: string; border: string } {
-  const num = grade.charAt(0);
-  switch (num) {
-    case '1':
-      return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' };
-    case '2':
-      return { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' };
-    case '3':
-      return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' };
-    case '4':
-      return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' };
-    case '5':
-      return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' };
-    case '6':
-      return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' };
-    default:
-      return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' };
-  }
+export function getClassBadgeStyle(_grade: GradeClass): { bg: string; text: string; border: string } {
+  return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200' };
 }
 
 /**

@@ -89,22 +89,17 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
     };
   }, [students, filteredTransactions]);
 
-  // Class-wise statistics (Kelas 5A & 5B)
-  const classSavingsData = useMemo(() => {
-    const classMap: Record<string, { grade: string; total: number; count: number }> = {
-      '5A': { grade: 'Kelas 5A', total: 0, count: 0 },
-      '5B': { grade: 'Kelas 5B', total: 0, count: 0 }
+  // Class statistics (Kelas 5)
+  const classSavingsInfo = useMemo(() => {
+    const total = students.reduce((acc, s) => acc + s.balance, 0);
+    const count = students.length;
+    const avg = count > 0 ? Math.round(total / count) : 0;
+    return {
+      grade: 'Kelas 5',
+      total,
+      count,
+      avg
     };
-
-    students.forEach(s => {
-      const g = s.grade;
-      if (classMap[g]) {
-        classMap[g].total += s.balance;
-        classMap[g].count += 1;
-      }
-    });
-
-    return Object.values(classMap);
   }, [students]);
 
   // Filtered daily transaction timeline for selected month (to feed Recharts area chart)
@@ -425,53 +420,45 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
           </div>
         </div>
 
-        {/* Klasemen Tabungan Kelas */}
-        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#ec4899] flex flex-col" id="chart-card-class">
-          <div className="mb-4">
-            <h2 className="text-lg font-black text-slate-900">🎒 Komparasi Antar Kelas</h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Perolehan akumulasi tabungan tiap jenjang kelas</p>
-          </div>
-          
-          <div className="h-[230px] w-full" id="class-chart-container">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={classSavingsData}
-                margin={{ top: 5, right: 0, left: -25, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="grade" 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fill: '#475569', fontSize: 10, fontWeight: 'bold' }} 
-                />
-                <YAxis 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fill: '#475569', fontSize: 9, fontWeight: 'bold' }}
-                  tickFormatter={(val) => val >= 1000000 ? `${(val/1000000).toFixed(1)}jt` : val >= 1000 ? `${val/1000}rb` : val} 
-                />
-                <Tooltip 
-                  formatter={(value: any) => [formatCurrency(value), 'Simpanan']}
-                  contentStyle={{ border: '2px solid #0f172a', borderRadius: '12px', boxShadow: '4px 4px 0px 0px #0f172a' }}
-                />
-                <Bar dataKey="total" radius={[6, 6, 0, 0]} name="Dana Ditabung">
-                  {classSavingsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#0f172a" strokeWidth={1} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Ringkasan Kelas 5 */}
+        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#ec4899] flex flex-col justify-between" id="chart-card-class">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <School size={20} className="text-indigo-600" /> Profil Tabungan Kelas 5
+              </h2>
+              <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full border border-amber-300">
+                SDN 1 Gemblengan
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium">Informasi konsolidasi kasir tabungan tunggal Kelas 5</p>
+
+            <div className="mt-5 space-y-3">
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                <p className="text-[11px] font-bold text-amber-900 uppercase tracking-wider">Total Kas Tabungan Kelas 5</p>
+                <p className="text-2xl font-black text-slate-900 font-mono mt-1">{formatCurrency(classSavingsInfo.total)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] font-extrabold text-slate-500 uppercase">Jumlah Siswa</p>
+                  <p className="text-base font-black text-indigo-700 font-mono mt-0.5">{classSavingsInfo.count} Anak</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] font-extrabold text-slate-500 uppercase">Rata-Rata Saldo</p>
+                  <p className="text-base font-black text-emerald-700 font-mono mt-0.5">{formatCurrency(classSavingsInfo.avg)}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-4 border-t border-slate-100 text-center mt-auto" id="class-chart-stats">
-            {classSavingsData.slice(0, 3).map((item, idx) => (
-              <div key={idx} className="p-2 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-[10px] font-extrabold text-indigo-650 tracking-wide uppercase">{item.grade}</p>
-                <p className="text-xs font-black text-slate-800 font-mono mt-0.5">{formatCurrency(item.total)}</p>
-                <p className="text-[9px] text-slate-400 font-semibold">{item.count} siswa</p>
-              </div>
-            ))}
+          <div className="pt-4 border-t border-slate-100 mt-4 flex gap-2">
+            <button
+              onClick={() => onNavigateToTab('students')}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Users size={14} /> Kelola Roster Kelas 5
+            </button>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { 
   FileSpreadsheet, 
   Search, 
@@ -102,6 +103,39 @@ export default function RekapBulanan({
       txCount: filteredLedger.length
     };
   }, [filteredLedger]);
+
+  // Export journal filtered list to Excel (.xlsx)
+  const handleExportJournalExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const journalRows = filteredLedger.map((t, idx) => ({
+        'No': idx + 1,
+        'Tanggal Transaksi': formatDate(t.date, true),
+        'NIS': t.studentId,
+        'Nama Siswa': t.studentName,
+        'Kelas': `Kelas ${t.studentGrade}`,
+        'Jenis Transaksi': t.type === 'SETOR' ? 'Setoran (Kredit)' : 'Penarikan (Debit)',
+        'Nominal (Rp)': t.amount,
+        'Catatan / Keterangan': t.notes || '-',
+        'Petugas Pencatat': t.recordedBy
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(journalRows);
+      ws['!cols'] = [
+        { wch: 6 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 10 },
+        { wch: 20 }, { wch: 18 }, { wch: 25 }, { wch: 20 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Jurnal Tabungan');
+      const periodName = filterMonth === 'ALL' ? 'seluruh-periode' : filterMonth;
+      XLSX.writeFile(wb, `jurnal-tabungan-kelas-5-${periodName}.xlsx`);
+
+      setBackupMessage({ text: 'Jurnal transaksi berhasil diekspor ke file Excel!', success: true });
+      setTimeout(() => setBackupMessage(null), 3000);
+    } catch (e: any) {
+      setBackupMessage({ text: 'Gagal mengekspor jurnal: ' + e.message, success: false });
+    }
+  };
 
   // JSON Export action
   const handleExportBackup = () => {
@@ -278,16 +312,7 @@ export default function RekapBulanan({
         {/* Filter Grade */}
         <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 w-full sm:w-auto">
           <Building size={13} className="text-slate-400" />
-          <select
-            id="report-class-filter"
-            value={filterGrade}
-            onChange={(e) => setFilterGrade(e.target.value)}
-            className="bg-transparent focus:outline-none pr-2 cursor-pointer"
-          >
-            <option value="ALL">Semua Kelas 5</option>
-            <option value="5A">Kelas 5A</option>
-            <option value="5B">Kelas 5B</option>
-          </select>
+          <span className="text-xs font-bold text-slate-700 px-1">Kelas 5</span>
         </div>
 
         {/* Filter Type */}
@@ -319,14 +344,26 @@ export default function RekapBulanan({
           />
         </div>
 
-        {/* Print Master Report Button */}
-        <button
-          id="print-master-report-pdf-trigger"
-          onClick={handlePrintReport}
-          className="w-full md:w-auto px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow-md cursor-pointer"
-        >
-          <Printer size={14} /> Cetak Rekap
-        </button>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          {/* Export Journal Excel Button */}
+          <button
+            id="export-journal-excel-trigger"
+            onClick={handleExportJournalExcel}
+            className="w-full md:w-auto px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow-md cursor-pointer"
+            title="Ekspor jurnal aktif ke file Excel (.xlsx)"
+          >
+            <FileSpreadsheet size={14} /> Ekspor Excel
+          </button>
+
+          {/* Print Master Report Button */}
+          <button
+            id="print-master-report-pdf-trigger"
+            onClick={handlePrintReport}
+            className="w-full md:w-auto px-3.5 py-2 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow-md cursor-pointer"
+          >
+            <Printer size={14} /> Cetak Rekap
+          </button>
+        </div>
       </div>
 
       {/* GRID STATS LAPORAN AKUMULASI (Beautiful in screen, styled nicely for print report summaries) */}

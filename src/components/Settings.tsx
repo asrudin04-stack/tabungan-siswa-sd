@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { 
   Database, 
   Upload, 
@@ -45,11 +46,12 @@ export default function Settings({
   const [showConfirmResetPanel, setShowConfirmResetPanel] = useState(false);
 
   // Raw bulk-import tab & text area states
-  const [importMode, setImportMode] = useState<'TEXT' | 'FILE_JSON'>('TEXT');
+  const [importMode, setImportMode] = useState<'EXCEL' | 'TEXT'>('EXCEL');
+  const studentExcelInputRef = useRef<HTMLInputElement>(null);
   const [rawPasteText, setRawPasteText] = useState(
-    "Ahmad Rafli, 5A, 12001, Sunarto, 0812345678, 50000\n" +
-    "Siti Aminah, 5A, 12002, Ahmad Yani, 0812999911, 20000\n" +
-    "Reza Rahadian, 5B, 12003, Bambang Tri, 0813888822, 0"
+    "Ahmad Rafli, 5, 202601001, Hidayat Santoso, 081234567812, 50000\n" +
+    "Siti Aminah, 5, 202601002, Ahmad Fauzi, 081398765431, 20000\n" +
+    "Rian Pratama, 5, 202602001, Bambang Tri, 0813888822, 0"
   );
   const [parsedPreviewList, setParsedPreviewList] = useState<Array<{
     name: string;
@@ -75,7 +77,7 @@ export default function Settings({
 
     // Valid Grade classes lookup map helper
     const validGrades: GradeClass[] = [
-      '5A', '5B'
+      '5'
     ];
 
     lines.forEach((line, index) => {
@@ -101,17 +103,8 @@ export default function Settings({
         return; // skip matching header rows safely
       }
 
-      // Fallback grade resolution (e.g. default to 5A/5B)
-      let resolvedGrade: GradeClass = '5A';
-      let gradeNormalized = gradeInput.toUpperCase().replace(/\s/g, '');
-      
-      if (validGrades.includes(gradeNormalized as GradeClass)) {
-        resolvedGrade = gradeNormalized as GradeClass;
-      } else {
-        // Try matching letters A or B
-        const isB = gradeNormalized.includes('B');
-        resolvedGrade = isB ? '5B' : '5A';
-      }
+      // Grade resolution for single class 5
+      let resolvedGrade: GradeClass = '5';
 
       // Convert deposit cleanly
       const cleanDepositString = rawDeposit.replace(/[Rp.\s-]/g, '');
@@ -180,35 +173,182 @@ export default function Settings({
     setTimeout(() => setDbStateMsg(null), 6000);
   };
 
-  // System level download files JSON Backup
-  const handleExportSystemBackup = () => {
+  // Download empty template for student import
+  const handleDownloadTemplate = () => {
     try {
-      const backupData = {
-        app: 'Tabungan Siswa SD Negeri 1 Gemblengan',
-        version: '1.0.0',
-        exportedAt: new Date().toISOString(),
-        students,
-        transactions
-      };
-
-      const jsonString = JSON.stringify(backupData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const wb = XLSX.utils.book_new();
+      const templateData = [
+        {
+          'NIS': '202601001',
+          'Nama Siswa': 'Ahmad Rafli Hidayat',
+          'Kelas': '5',
+          'Nama Orang Tua': 'Hidayat Santoso',
+          'No Telepon': '081234567812',
+          'Setoran Awal': 50000
+        },
+        {
+          'NIS': '202601002',
+          'Nama Siswa': 'Siti Aminah Azzahra',
+          'Kelas': '5',
+          'Nama Orang Tua': 'Ahmad Fauzi',
+          'No Telepon': '081398765431',
+          'Setoran Awal': 25000
+        }
+      ];
+      const ws = XLSX.utils.json_to_sheet(templateData);
       
-      const today = new Date().toISOString().slice(0, 10);
-      a.href = url;
-      a.download = `backup-tabungan-siswa-${today}.json`;
-      a.click();
+      // Auto-fit column widths
+      const maxLens = { NIS: 12, 'Nama Siswa': 25, 'Kelas': 8, 'Nama Orang Tua': 20, 'No Telepon': 15, 'Setoran Awal': 15 };
+      ws['!cols'] = Object.values(maxLens).map(w => ({ wch: w }));
 
-      setDbStateMsg({ text: 'Seluruh database tabungan berhasil diekspor sebagai cadangan JSON!', success: true });
-      setTimeout(() => setDbStateMsg(null), 4000);
+      XLSX.utils.book_append_sheet(wb, ws, 'Template Impor');
+      XLSX.writeFile(wb, 'template-impor-siswa-kelas-5.xlsx');
+      
+      setDbStateMsg({ text: 'Template impor siswa Excel berhasil diunduh!', success: true });
+      setTimeout(() => setDbStateMsg(null), 3000);
     } catch (e: any) {
-      setDbStateMsg({ text: 'Gagal mengekspor cadangan: ' + e.message, success: false });
+      setDbStateMsg({ text: 'Gagal mengunduh template: ' + e.message, success: false });
     }
   };
 
-  // Loader from JSON file restore system state
+  // Parser helper for student Excel file
+  const handleExcelStudentImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const wsname = workbook.SheetNames[0];
+        const ws = workbook.Sheets[wsname];
+        const json: any[] = XLSX.utils.sheet_to_json(ws);
+
+        if (json.length === 0) {
+          throw new Error('File Excel kosong atau tidak terbaca.');
+        }
+
+        const parsed: typeof parsedPreviewList = [];
+
+        json.forEach((row) => {
+          // Find potential keys by normalized matching
+          const getVal = (possibleKeys: string[]) => {
+            for (const key of Object.keys(row)) {
+              if (possibleKeys.some(pk => key.toLowerCase().replace(/[\s_.-]/g, '').includes(pk))) {
+                return row[key];
+              }
+            }
+            return undefined;
+          };
+
+          const name = String(getVal(['namasiswa', 'namalengkap', 'nama', 'studentname', 'student']) || row['Nama Siswa'] || row['Nama'] || '').trim();
+          const nis = String(getVal(['nisn', 'nis', 'idnumber']) || row['NIS'] || '').trim();
+          const parentName = String(getVal(['namaorangtua', 'namaorang', 'namawali', 'orangtua', 'wali', 'parentname', 'parent']) || row['Nama Orang Tua'] || '').trim();
+          const phone = String(getVal(['notelepon', 'notelp', 'telepon', 'nohp', 'hp', 'phone', 'phonenumber']) || row['No Telepon'] || '').trim();
+          const initialDeposit = Number(getVal(['setoranawal', 'saldoawal', 'saldo', 'deposit', 'initialdeposit', 'initial']) || row['Setoran Awal'] || 0);
+
+          if (!name && !nis) return; // skip empty rows
+
+          // Resolve Grade to single class 5
+          const resolvedGrade: GradeClass = '5';
+
+          let isValid = true;
+          let errorReason = '';
+
+          if (!name) {
+            isValid = false;
+            errorReason = 'Nama kosong';
+          } else if (!nis) {
+            isValid = false;
+            errorReason = 'NIS kosong';
+          }
+
+          // Check duplicate NIS
+          const isDuplicateInApp = students.some(s => s.nis === nis);
+          const isDuplicateInPreview = parsed.some(p => p.nis === nis);
+          if (isDuplicateInApp) {
+            isValid = false;
+            errorReason = 'NIS sudah terdaftar';
+          } else if (isDuplicateInPreview) {
+            isValid = false;
+            errorReason = 'NIS terduplikasi dalam file';
+          }
+
+          parsed.push({
+            name,
+            grade: resolvedGrade,
+            nis,
+            parentName,
+            phone,
+            initialDeposit,
+            isValid,
+            errorReason
+          });
+        });
+
+        if (parsed.length === 0) {
+          throw new Error('Tidak ada baris siswa yang berhasil diuraikan. Periksa apakah header kolom cocok (NIS, Nama Siswa, Kelas, dll).');
+        }
+
+        setParsedPreviewList(parsed);
+        setIsParsed(true);
+        setDbStateMsg({ text: `Berhasil mengurai ${parsed.length} data siswa dari Excel! Silakan periksa tabel pratinjau di bawah.`, success: true });
+        setTimeout(() => setDbStateMsg(null), 4000);
+      } catch (err: any) {
+        setDbStateMsg({ text: 'Gagal mengurai file Excel: ' + err.message, success: false });
+        setTimeout(() => setDbStateMsg(null), 5000);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    if (e.target) e.target.value = '';
+  };
+
+  // System level download files Excel Backup (.xlsx)
+  const handleExportSystemBackup = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Daftar Siswa
+      const studentsExportData = students.map(s => ({
+        'ID Siswa': s.id,
+        'NIS': s.nis,
+        'Nama Lengkap': s.name,
+        'Kelas': s.grade,
+        'Nama Wali Murid': s.parentName,
+        'No Handphone': s.phone,
+        'Saldo (Rp)': s.balance,
+        'Tanggal Pendaftaran': s.createdAt
+      }));
+      const wsStudents = XLSX.utils.json_to_sheet(studentsExportData);
+      XLSX.utils.book_append_sheet(wb, wsStudents, 'Daftar Siswa');
+
+      // Sheet 2: Riwayat Transaksi
+      const transactionsExportData = transactions.map(t => ({
+        'ID Transaksi': t.id,
+        'ID Siswa': t.studentId,
+        'Nama Siswa': t.studentName,
+        'Kelas': t.studentGrade,
+        'Tipe Transaksi': t.type,
+        'Jumlah (Rp)': t.amount,
+        'Tanggal Transaksi': t.date,
+        'Catatan': t.notes,
+        'Petugas Pencatat': t.recordedBy
+      }));
+      const wsTransactions = XLSX.utils.json_to_sheet(transactionsExportData);
+      XLSX.utils.book_append_sheet(wb, wsTransactions, 'Riwayat Transaksi');
+
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `backup-tabungan-siswa-${today}.xlsx`);
+
+      setDbStateMsg({ text: 'Seluruh database tabungan berhasil diekspor sebagai cadangan Excel (.xlsx)!', success: true });
+      setTimeout(() => setDbStateMsg(null), 4000);
+    } catch (e: any) {
+      setDbStateMsg({ text: 'Gagal mengekspor cadangan Excel: ' + e.message, success: false });
+    }
+  };
+
+  // Loader from Excel file restore system state
   const handleRestoreSystemBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -216,32 +356,64 @@ export default function Settings({
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const text = event.target?.result as string;
-        const parsed = JSON.parse(text);
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
 
-        if (!parsed.students || !Array.isArray(parsed.students) || !parsed.transactions || !Array.isArray(parsed.transactions)) {
-          throw new Error('Berkas tidak memiliki objek data "students" dan "transactions" yang lengkap.');
+        const hasStudents = workbook.SheetNames.includes('Daftar Siswa');
+        const hasTransactions = workbook.SheetNames.includes('Riwayat Transaksi');
+
+        if (!hasStudents || !hasTransactions) {
+          throw new Error('Berkas tidak valid. Pastikan file Excel yang dipilih memiliki sheet "Daftar Siswa" dan "Riwayat Transaksi".');
         }
 
+        // Parse Daftar Siswa
+        const wsStudents = workbook.Sheets['Daftar Siswa'];
+        const rawStudentsJson: any[] = XLSX.utils.sheet_to_json(wsStudents);
+        const importedStudents: Student[] = rawStudentsJson.map(row => ({
+          id: String(row['ID Siswa'] || ''),
+          nis: String(row['NIS'] || ''),
+          name: String(row['Nama Lengkap'] || ''),
+          grade: String(row['Kelas'] || '5A') as GradeClass,
+          parentName: String(row['Nama Wali Murid'] || ''),
+          phone: String(row['No Handphone'] || ''),
+          balance: Number(row['Saldo (Rp)'] || row['Saldo'] || 0),
+          createdAt: String(row['Tanggal Pendaftaran'] || new Date().toISOString())
+        })).filter(s => s.id && s.name && s.nis);
+
+        // Parse Riwayat Transaksi
+        const wsTransactions = workbook.Sheets['Riwayat Transaksi'];
+        const rawTransactionsJson: any[] = XLSX.utils.sheet_to_json(wsTransactions);
+        const importedTransactions: Transaction[] = rawTransactionsJson.map(row => ({
+          id: String(row['ID Transaksi'] || ''),
+          studentId: String(row['ID Siswa'] || ''),
+          studentName: String(row['Nama Siswa'] || ''),
+          studentGrade: '5' as GradeClass,
+          type: String(row['Tipe Transaksi'] || 'SETOR') as 'SETOR' | 'TARIK',
+          amount: Number(row['Jumlah (Rp)'] || 0),
+          date: String(row['Tanggal Transaksi'] || new Date().toISOString()),
+          notes: String(row['Catatan'] || ''),
+          recordedBy: String(row['Petugas Pencatat'] || row['Petugas'] || 'Sistem')
+        })).filter(t => t.id && t.studentId);
+
         const confirmed = window.confirm(
-          `Apakah Anda yakin ingin memulihkan cadangan ini?\n\n` +
+          `Apakah Anda yakin ingin memulihkan cadangan Excel ini?\n\n` +
           `File Cadangan mengandung:\n` +
-          `- ${parsed.students.length} Orang Murid\n` +
-          `- ${parsed.transactions.length} Jurnal Buku Tabungan\n\n` +
-          `PERINGATAN: Langkah ini akan menolak dan menghapus seluruh data tabungan di browser saat ini!`
+          `- ${importedStudents.length} Orang Murid\n` +
+          `- ${importedTransactions.length} Jurnal Buku Tabungan\n\n` +
+          `PERINGATAN: Langkah ini akan menolak dan menghapus seluruh data tabungan saat ini!`
         );
 
         if (confirmed) {
-          onImportData(parsed.students, parsed.transactions);
-          setDbStateMsg({ text: 'Database tabungan berhasil dipulihkan dengan sukses!', success: true });
+          onImportData(importedStudents, importedTransactions);
+          setDbStateMsg({ text: 'Database tabungan berhasil dipulihkan dari file Excel!', success: true });
           setTimeout(() => setDbStateMsg(null), 5000);
         }
       } catch (err: any) {
-        setDbStateMsg({ text: 'Gagal memulihkan file: ' + err.message, success: false });
+        setDbStateMsg({ text: 'Gagal memulihkan file Excel: ' + err.message, success: false });
         setTimeout(() => setDbStateMsg(null), 5000);
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -301,59 +473,134 @@ export default function Settings({
               <h2 className="text-lg font-black text-slate-950">Impor Data Siswa Secara Massal</h2>
             </div>
             <p className="text-xs text-slate-500 font-medium">
-              Bapak/Ibu Guru tidak perlu memasukkan nama siswa satu per satu! Cukup salin dan tempel daftar nama dari Excel atau ketik teks format di bawah ini.
+              Bapak/Ibu Guru tidak perlu memasukkan nama siswa satu per satu! Unggah file roster Excel kelas Anda atau tempel salinan data di sini.
             </p>
 
-            {/* Template format guidelines */}
-            <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-250 text-xs text-slate-700 space-y-2">
-              <p className="font-bold text-amber-900 flex items-center gap-1.5 leading-none">
-                <Info size={14} className="stroke-[2.5]" /> Format Penulisan Teks:
-              </p>
-              <p className="font-mono bg-white p-2.5 rounded border border-amber-200 font-bold overflow-x-auto text-[11px]">
-                Nama Siswa, Kelas, NIS, Nama Wali Murid, No Handphone, Saldo Awal (Opsional)
-              </p>
-              <div className="space-y-1 mt-2 pl-1 leading-normal text-slate-600 font-medium">
-                <p>💡 <em>Contoh:</em> <code className="font-mono text-indigo-700 font-bold bg-white px-1 py-0.2 rounded">Andika Saputra, 2A, 12009, Herman, 081234, 50000</code></p>
-                <p>💡 Gunakan tanda koma (,), titik koma (;), atau tombol tab sebagai pemisah antar kolom siswa Anda.</p>
-                <p>💡 Jika kelas diisi <code className="font-mono text-indigo-700 bg-white px-1">2</code> akan secara otomatis terpetakan ke <code className="font-mono text-indigo-700 bg-white px-1">2A</code>.</p>
-              </div>
+            {/* Tab Switcher */}
+            <div className="flex border-b border-slate-200 mt-4">
+              <button
+                onClick={() => {
+                  setImportMode('EXCEL');
+                  setIsParsed(false);
+                  setParsedPreviewList([]);
+                }}
+                className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  importMode === 'EXCEL'
+                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <FileSpreadsheet size={14} /> Unggah File Excel (.xlsx / .xls)
+              </button>
+              <button
+                onClick={() => {
+                  setImportMode('TEXT');
+                  setIsParsed(false);
+                  setParsedPreviewList([]);
+                }}
+                className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                  importMode === 'TEXT'
+                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Clipboard size={14} /> Tempel Teks Manual (CSV)
+              </button>
             </div>
 
-            {/* Input target block */}
-            <div className="mt-5 space-y-2">
-              <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider block">
-                Salin & Tempel Roster Kelas Di Sini
-              </label>
-              <textarea
-                value={rawPasteText}
-                onChange={(e) => {
-                  setRawPasteText(e.target.value);
-                  setIsParsed(false);
-                }}
-                rows={6}
-                placeholder="Andi Wijaya, 1A, 2026101, Herman, 08129999, 10000&#10;Siti Aminah, 1B, 2026102, Bambang, 08138888, 5000"
-                className="w-full bg-slate-50 p-4 border-2 border-slate-900 rounded-xl text-xs font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white tracking-wide transition-all shadow-[2px_2px_0px_0px_#000]"
-                id="raw-import-students-textarea"
-              />
-            </div>
+            {importMode === 'EXCEL' ? (
+              <div className="space-y-4 mt-4 animate-fade-in">
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-xs text-slate-750 space-y-3">
+                  <p className="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <Info size={14} className="stroke-[2.5]" /> Petunjuk Impor Excel:
+                  </p>
+                  <p className="leading-relaxed text-xs">
+                    Sistem akan mencocokkan kolom secara otomatis. Pastikan file Excel Anda minimal berisi kolom <strong>NIS</strong>, <strong>Nama Siswa</strong>, dan <strong>Kelas</strong> (5A atau 5B). Klik tombol di bawah ini untuk mengunduh template Excel siap pakai.
+                  </p>
+                  <button
+                    onClick={handleDownloadTemplate}
+                    className="px-4 py-2 bg-white hover:bg-slate-100 text-indigo-700 font-bold border border-indigo-300 rounded-lg shadow-sm transition-all text-[11px] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Download size={12} className="stroke-[2.5]" /> Unduh Template Impor Excel (.xlsx)
+                  </button>
+                </div>
+
+                <div 
+                  onClick={() => studentExcelInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/30 p-8 rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group shadow-sm"
+                >
+                  <span className="p-3 bg-white text-indigo-600 rounded-full border border-slate-250 group-hover:scale-105 transition-transform shadow-inner">
+                    <FileSpreadsheet size={24} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-800">Klik untuk memilih atau jatuhkan file Excel Anda</p>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-1">Format dokumen yang didukung: .xlsx atau .xls</p>
+                  </div>
+                </div>
+
+                <input 
+                  type="file"
+                  ref={studentExcelInputRef}
+                  className="hidden"
+                  accept=".xlsx, .xls"
+                  onChange={handleExcelStudentImport}
+                />
+              </div>
+            ) : (
+              <div className="space-y-4 mt-4 animate-fade-in">
+                {/* Template format guidelines */}
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-slate-700 space-y-2">
+                  <p className="font-bold text-amber-900 flex items-center gap-1.5 leading-none">
+                    <Info size={14} className="stroke-[2.5]" /> Format Penulisan Teks:
+                  </p>
+                  <p className="font-mono bg-white p-2.5 rounded border border-amber-200 font-bold overflow-x-auto text-[11px]">
+                    Nama Siswa, Kelas, NIS, Nama Wali Murid, No Handphone, Saldo Awal (Opsional)
+                  </p>
+                  <div className="space-y-1 mt-2 pl-1 leading-normal text-slate-600 font-medium">
+                    <p>💡 <em>Contoh:</em> <code className="font-mono text-indigo-700 font-bold bg-white px-1 py-0.2 rounded">Andika Saputra, 5A, 12009, Herman, 081234, 50000</code></p>
+                    <p>💡 Gunakan tanda koma (,), titik koma (;), atau tombol tab sebagai pemisah antar kolom siswa Anda.</p>
+                  </div>
+                </div>
+
+                {/* Input target block */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider block">
+                    Salin & Tempel Roster Kelas Di Sini
+                  </label>
+                  <textarea
+                    value={rawPasteText}
+                    onChange={(e) => {
+                      setRawPasteText(e.target.value);
+                      setIsParsed(false);
+                    }}
+                    rows={6}
+                    placeholder="Andi Wijaya, 5A, 2026101, Herman, 08129999, 10000&#10;Siti Aminah, 5B, 2026102, Bambang, 08138888, 5000"
+                    className="w-full bg-slate-50 p-4 border-2 border-slate-900 rounded-xl text-xs font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white tracking-wide transition-all shadow-[2px_2px_0px_0px_#000]"
+                    id="raw-import-students-textarea"
+                  />
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    onClick={handleParseText}
+                    className="px-5 py-3 bg-white hover:bg-amber-100 text-slate-900 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+                    id="parse-import-text-btn"
+                  >
+                    <RefreshCw size={14} className="stroke-[2.5]" /> Analisis Struktur Data Teks
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 mt-4 pt-1">
-            <button
-              onClick={handleParseText}
-              className="px-5 py-3 bg-white hover:bg-amber-100 text-slate-900 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
-              id="parse-import-text-btn"
-            >
-              <RefreshCw size={14} className="stroke-[2.5]" /> 1. Analisis Struktur Data
-            </button>
-
             {isParsed && parsedPreviewList.length > 0 && (
               <button
                 onClick={handleExecuteImport}
                 className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#047857] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#047857] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
                 id="execute-import-students-btn"
               >
-                <Check size={14} className="stroke-[3]" /> 2. Impor Masal Sekarang ({parsedPreviewList.filter(p => p.isValid).length} Siswa)
+                <Check size={14} className="stroke-[3]" /> Simpan Hasil Impor ({parsedPreviewList.filter(p => p.isValid).length} Siswa Baru)
               </button>
             )}
           </div>
@@ -371,7 +618,7 @@ export default function Settings({
               <h2 className="text-lg font-black text-slate-950">Cadangkan / Ekspor Data</h2>
             </div>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Disarankan untuk mencadangkan data tabungan secara berkala. Seluruh pembukuan tabungan saat ini akan diunduh sebagai file backup tunggal yang dapat disimpan aman di komputer Anda.
+              Disarankan untuk mencadangkan data tabungan secara berkala. Seluruh pembukuan tabungan saat ini akan diunduh sebagai file backup Excel (.xlsx) tunggal yang dapat disimpan aman di komputer Anda.
             </p>
 
             <div className="space-y-2.5 pt-2">
@@ -380,9 +627,9 @@ export default function Settings({
                 onClick={handleExportSystemBackup}
                 className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
                 id="btn-major-export-backup"
-                title="Download data tabungan saat ini sebagai cadangan (.json)"
+                title="Download data tabungan saat ini sebagai file Excel (.xlsx)"
               >
-                <Download size={15} className="stroke-[2.5]" /> Unduh File Cadangan (.JSON)
+                <Download size={15} className="stroke-[2.5]" /> Unduh File Cadangan (.XLSX)
               </button>
 
               {/* Restore Action File */}
@@ -390,16 +637,16 @@ export default function Settings({
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full py-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
                 id="btn-major-import-restore"
-                title="Muat data cadangan (.json) untuk memulihkan tabungan"
+                title="Muat data cadangan Excel untuk memulihkan tabungan"
               >
-                <Upload size={15} className="stroke-[2.5]" /> Pulihkan Cadangan dari Komputer
+                <Upload size={15} className="stroke-[2.5]" /> Pulihkan Cadangan dari Excel
               </button>
               
               <input 
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".json"
+                accept=".xlsx, .xls"
                 onChange={handleRestoreSystemBackup}
               />
             </div>
