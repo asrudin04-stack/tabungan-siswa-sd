@@ -10,7 +10,9 @@ import {
   Trophy, 
   Clock, 
   Sparkles,
-  School
+  School,
+  LineChart as LineChartIcon,
+  Activity
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, getClassBadgeStyle, getIndonesianMonthYear } from '../utils';
@@ -19,6 +21,8 @@ import {
   Area, 
   BarChart, 
   Bar, 
+  LineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -168,6 +172,91 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
       }));
     }
   }, [transactions, filteredTransactions, selectedMonth, monthFilters]);
+
+  // 6-Month Savings Trend Data for Recharts LineChart
+  const sixMonthTrendData = useMemo(() => {
+    const result: Array<{
+      monthKey: string;
+      monthLabel: string;
+      fullLabel: string;
+      Setoran: number;
+      Penarikan: number;
+      TabunganBersih: number;
+      txCount: number;
+    }> = [];
+
+    const now = new Date();
+    let refYear = now.getFullYear();
+    let refMonth = now.getMonth();
+
+    if (transactions.length > 0) {
+      const dates = transactions.map(t => t.date).filter(Boolean).sort();
+      if (dates.length > 0) {
+        const maxDate = new Date(dates[dates.length - 1]);
+        if (maxDate > now) {
+          refYear = maxDate.getFullYear();
+          refMonth = maxDate.getMonth();
+        }
+      }
+    }
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(refYear, refMonth - i, 1);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const mKey = `${yyyy}-${mm}`;
+
+      let setoran = 0;
+      let penarikan = 0;
+      let count = 0;
+
+      transactions.forEach(t => {
+        if (t.date && t.date.startsWith(mKey)) {
+          count++;
+          if (t.type === 'SETOR') setoran += t.amount;
+          else if (t.type === 'TARIK') penarikan += t.amount;
+        }
+      });
+
+      const fullLabel = getIndonesianMonthYear(mKey);
+      const monthLabel = fullLabel.split(' ')[0];
+
+      result.push({
+        monthKey: mKey,
+        monthLabel,
+        fullLabel,
+        Setoran: setoran,
+        Penarikan: penarikan,
+        TabunganBersih: setoran - penarikan,
+        txCount: count
+      });
+    }
+
+    return result;
+  }, [transactions]);
+
+  // Insights and metrics derived from 6-Month Trend Data
+  const sixMonthMetrics = useMemo(() => {
+    const totalSetoran = sixMonthTrendData.reduce((acc, curr) => acc + curr.Setoran, 0);
+    const totalPenarikan = sixMonthTrendData.reduce((acc, curr) => acc + curr.Penarikan, 0);
+    const avgMonthlySetor = Math.round(totalSetoran / (sixMonthTrendData.length || 1));
+    
+    // Find peak deposit month
+    let peakMonth = sixMonthTrendData[0] || { fullLabel: '-', Setoran: 0 };
+    sixMonthTrendData.forEach(item => {
+      if (item.Setoran > peakMonth.Setoran) {
+        peakMonth = item;
+      }
+    });
+
+    return {
+      totalSetoran,
+      totalPenarikan,
+      netTotal: totalSetoran - totalPenarikan,
+      avgMonthlySetor,
+      peakMonth
+    };
+  }, [sixMonthTrendData]);
 
   // Top 5 Savers
   const topSavers = useMemo(() => {
@@ -462,6 +551,132 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
           </div>
         </div>
 
+      </div>
+
+      {/* Recharts Line Chart: Tren Tabungan 6 Bulan Terakhir */}
+      <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#0284c7] flex flex-col space-y-4" id="six-month-line-chart-card">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-sky-100 text-sky-700 rounded-lg border border-sky-300">
+                <LineChartIcon size={18} />
+              </span>
+              <h2 className="text-lg font-black text-slate-900">📈 Tren & Pola Tabungan 6 Bulan Terakhir</h2>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Visualisasi historis Recharts untuk memantau fluktuasi setoran, penarikan, dan pertumbuhan tabungan bersih siswa.
+            </p>
+          </div>
+
+          {/* Key Metric Pills for Teachers */}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+            <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="text-[10px] text-emerald-800 font-extrabold uppercase">Rata-Rata Setoran/Bln</p>
+              <p className="text-xs font-mono font-black text-emerald-700 mt-0.5">{formatCurrency(sixMonthMetrics.avgMonthlySetor)}</p>
+            </div>
+            <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl">
+              <p className="text-[10px] text-amber-800 font-extrabold uppercase">Puncak Setoran</p>
+              <p className="text-xs font-mono font-black text-amber-900 mt-0.5">{sixMonthMetrics.peakMonth.monthLabel} ({formatCurrency(sixMonthMetrics.peakMonth.Setoran)})</p>
+            </div>
+            <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-xl">
+              <p className="text-[10px] text-indigo-800 font-extrabold uppercase">Net 6 Bulan</p>
+              <p className="text-xs font-mono font-black text-indigo-700 mt-0.5">{formatCurrency(sixMonthMetrics.netTotal)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recharts Line Chart Container */}
+        <div className="h-[290px] w-full pt-2" id="six-month-recharts-container">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={sixMonthTrendData}
+              margin={{ top: 15, right: 20, left: -10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis 
+                dataKey="monthLabel" 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fill: '#334155', fontSize: 12, fontWeight: 'bold' }} 
+              />
+              <YAxis 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fill: '#334155', fontSize: 10, fontWeight: 'bold' }}
+                tickFormatter={(val) => val >= 1000000 ? `${(val/1000000).toFixed(1)}jt` : val >= 1000 ? `${val/1000}rb` : val} 
+              />
+              <Tooltip 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-slate-900 text-white p-3 rounded-xl border-2 border-slate-950 shadow-xl text-xs space-y-1 font-sans">
+                        <p className="font-extrabold text-amber-400 text-sm border-b border-slate-700 pb-1 flex items-center justify-between gap-4">
+                          <span>{data.fullLabel}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{data.txCount} Transaksi</span>
+                        </p>
+                        <p className="flex justify-between items-center gap-4 text-emerald-400 font-bold pt-1">
+                          <span>🟢 Total Setoran:</span>
+                          <span className="font-mono text-sm">{formatCurrency(data.Setoran)}</span>
+                        </p>
+                        <p className="flex justify-between items-center gap-4 text-rose-400 font-bold">
+                          <span>🔴 Total Penarikan:</span>
+                          <span className="font-mono text-sm">{formatCurrency(data.Penarikan)}</span>
+                        </p>
+                        <div className="border-t border-slate-800 pt-1 flex justify-between items-center gap-4 text-indigo-300 font-extrabold">
+                          <span>🔵 Tabungan Bersih:</span>
+                          <span className="font-mono text-sm">{formatCurrency(data.TabunganBersih)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ paddingTop: '10px', fontSize: '12px', fontWeight: 'bold' }} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="Setoran" 
+                name="Total Setoran (Kredit)" 
+                stroke="#10b981" 
+                strokeWidth={3.5} 
+                dot={{ r: 5, fill: '#10b981', stroke: '#ffffff', strokeWidth: 2 }} 
+                activeDot={{ r: 8, strokeWidth: 0 }} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="TabunganBersih" 
+                name="Tabungan Bersih (Net)" 
+                stroke="#6366f1" 
+                strokeWidth={3} 
+                strokeDasharray="5 5" 
+                dot={{ r: 4, fill: '#6366f1', stroke: '#ffffff', strokeWidth: 2 }} 
+                activeDot={{ r: 7 }} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="Penarikan" 
+                name="Total Penarikan (Debit)" 
+                stroke="#f43f5e" 
+                strokeWidth={2.5} 
+                dot={{ r: 4, fill: '#f43f5e', stroke: '#ffffff', strokeWidth: 2 }} 
+                activeDot={{ r: 7 }} 
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pattern Analysis Footer Note */}
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <Activity size={15} className="text-indigo-600 flex-shrink-0" />
+            <span className="font-semibold">
+              <strong className="text-slate-900">Catatan Analisis:</strong> Tren grafik garis membantu guru mengenali kebiasaan menabung rutin pada awal bulan serta periode peningkatan kebutuhan penarikan siswa.
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Grid Bawah: Pemimpin Penabung & Riwayat Transaksi */}
