@@ -75,36 +75,82 @@ export default function Settings({
     const lines = rawPasteText.split('\n');
     const parsed: typeof parsedPreviewList = [];
 
-    // Valid Grade classes lookup map helper
-    const validGrades: GradeClass[] = [
-      '5'
-    ];
-
     lines.forEach((line, index) => {
       const trimmed = line.trim();
       if (!trimmed) return; // Skip blank lines
 
       // Clean typical CSV/tsv delimiters
-      let parts = trimmed.split(/,|\t|;/);
-      
-      // Filter out empty parts
-      parts = parts.map(part => part.trim());
+      let parts = trimmed.split(/,|\t|;/).map(part => part.trim());
 
-      // Try parsing values safely
-      const name = parts[0] || '';
-      let gradeInput = parts[1] || '';
-      const nis = parts[2] || '';
-      const parentName = parts[3] || '';
-      const phone = parts[4] || '';
-      const rawDeposit = parts[5] || '0';
+      // Skip header lines
+      const firstPart = (parts[0] || '').toLowerCase();
+      if (firstPart.includes('nama') || firstPart.includes('student') || firstPart.includes('nis')) {
+        return;
+      }
 
-      // Skip header lines optionally
-      if (name.toLowerCase().includes('nama') || name.toLowerCase().includes('student') || name.toLowerCase().includes('nis')) {
-        return; // skip matching header rows safely
+      // Detect if column order is [Nama, Kelas, NIS...] or [Nama, NIS, Kelas...] or [NIS, Nama...]
+      let name = '';
+      let nis = '';
+      let parentName = '';
+      let phone = '';
+      let rawDeposit = '0';
+
+      if (parts.length >= 2) {
+        // Case 1: First column is NIS (numeric string length >= 4)
+        if (/^\d{4,}$/.test(parts[0])) {
+          nis = parts[0];
+          name = parts[1] || '';
+          // parts[2] could be class or parent
+          if (parts[2] && !/^\d+$/.test(parts[2]) && parts[2].length <= 3) { // Grade '5' or '5A'
+            parentName = parts[3] || '';
+            phone = parts[4] || '';
+            rawDeposit = parts[5] || '0';
+          } else {
+            parentName = parts[2] || '';
+            phone = parts[3] || '';
+            rawDeposit = parts[4] || '0';
+          }
+        } else {
+          // Case 2: First column is Name
+          name = parts[0];
+          
+          // Check if second column is NIS (digits >= 4) or Grade ('5', '5A')
+          if (/^\d{4,}$/.test(parts[1])) {
+            nis = parts[1];
+            // parts[2] could be grade or parent
+            if (parts[2] && parts[2].length <= 3) {
+              parentName = parts[3] || '';
+              phone = parts[4] || '';
+              rawDeposit = parts[5] || '0';
+            } else {
+              parentName = parts[2] || '';
+              phone = parts[3] || '';
+              rawDeposit = parts[4] || '0';
+            }
+          } else {
+            // Second column is Grade (e.g., '5')
+            if (parts[2] && /^\d{4,}$/.test(parts[2])) {
+              nis = parts[2];
+              parentName = parts[3] || '';
+              phone = parts[4] || '';
+              rawDeposit = parts[5] || '0';
+            } else {
+              nis = parts[2] || `${new Date().getFullYear()}05${String(index + 1).padStart(3, '0')}`;
+              parentName = parts[3] || '';
+              phone = parts[4] || '';
+              rawDeposit = parts[5] || '0';
+            }
+          }
+        }
+      }
+
+      // Format Phone number
+      if (phone.startsWith('8') && phone.length >= 9) {
+        phone = '0' + phone;
       }
 
       // Grade resolution for single class 5
-      let resolvedGrade: GradeClass = '5';
+      const resolvedGrade: GradeClass = '5';
 
       // Convert deposit cleanly
       const cleanDepositString = rawDeposit.replace(/[Rp.\s-]/g, '');
@@ -127,7 +173,7 @@ export default function Settings({
       const isDuplicateInPreview = parsed.some(p => p.nis === nis);
       if (isDuplicateInApp) {
         isValid = false;
-        errorReason = 'NIS sudah terdaftar';
+        errorReason = 'NIS sudah terdaftar di sistem';
       } else if (isDuplicateInPreview) {
         isValid = false;
         errorReason = 'NIS terduplikasi dalam daftar';
@@ -231,24 +277,51 @@ export default function Settings({
 
         const parsed: typeof parsedPreviewList = [];
 
-        json.forEach((row) => {
-          // Find potential keys by normalized matching
+        json.forEach((row, index) => {
+          const rowKeys = Object.keys(row);
+
+          // Robust value getter with exact key match priority
           const getVal = (possibleKeys: string[]) => {
-            for (const key of Object.keys(row)) {
-              if (possibleKeys.some(pk => key.toLowerCase().replace(/[\s_.-]/g, '').includes(pk))) {
-                return row[key];
+            // 1. Try exact match first
+            for (const pk of possibleKeys) {
+              const matchedKey = rowKeys.find(k => k.toLowerCase().replace(/[\s_.:-]/g, '') === pk);
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+                return row[matchedKey];
+              }
+            }
+            // 2. Try substring match, excluding parent keys when looking for student name
+            for (const pk of possibleKeys) {
+              const matchedKey = rowKeys.find(k => {
+                const norm = k.toLowerCase().replace(/[\s_.:-]/g, '');
+                if ((pk === 'nama' || pk === 'student') && (norm.includes('orang') || norm.includes('wali') || norm.includes('ortu') || norm.includes('parent'))) {
+                  return false;
+                }
+                return norm.includes(pk);
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+                return row[matchedKey];
               }
             }
             return undefined;
           };
 
-          const name = String(getVal(['namasiswa', 'namalengkap', 'nama', 'studentname', 'student']) || row['Nama Siswa'] || row['Nama'] || '').trim();
-          const nis = String(getVal(['nisn', 'nis', 'idnumber']) || row['NIS'] || '').trim();
-          const parentName = String(getVal(['namaorangtua', 'namaorang', 'namawali', 'orangtua', 'wali', 'parentname', 'parent']) || row['Nama Orang Tua'] || '').trim();
-          const phone = String(getVal(['notelepon', 'notelp', 'telepon', 'nohp', 'hp', 'phone', 'phonenumber']) || row['No Telepon'] || '').trim();
+          const name = String(getVal(['namasiswa', 'namalengkap', 'namamurid', 'nama', 'studentname', 'student']) || row['Nama Siswa'] || row['Nama'] || '').trim();
+          let nis = String(getVal(['nisn', 'nis', 'idnumber', 'nomorinduk']) || row['NIS'] || '').trim().replace(/\.0$/, '');
+          const parentName = String(getVal(['namaorangtua', 'namaorang', 'namawali', 'namaortu', 'orangtua', 'wali', 'parentname', 'parent']) || row['Nama Orang Tua'] || '').trim();
+          let phone = String(getVal(['notelepon', 'notelp', 'telepon', 'nohp', 'hp', 'phone', 'phonenumber', 'whatsapp']) || row['No Telepon'] || '').trim().replace(/\.0$/, '');
           const initialDeposit = Number(getVal(['setoranawal', 'saldoawal', 'saldo', 'deposit', 'initialdeposit', 'initial']) || row['Setoran Awal'] || 0);
 
           if (!name && !nis) return; // skip empty rows
+
+          // Auto-generate NIS if missing
+          if (!nis && name) {
+            nis = `${new Date().getFullYear()}05${String(index + 1).padStart(3, '0')}`;
+          }
+
+          // Format phone number
+          if (phone.startsWith('8') && phone.length >= 9) {
+            phone = '0' + phone;
+          }
 
           // Resolve Grade to single class 5
           const resolvedGrade: GradeClass = '5';
@@ -269,7 +342,7 @@ export default function Settings({
           const isDuplicateInPreview = parsed.some(p => p.nis === nis);
           if (isDuplicateInApp) {
             isValid = false;
-            errorReason = 'NIS sudah terdaftar';
+            errorReason = 'NIS sudah terdaftar di sistem';
           } else if (isDuplicateInPreview) {
             isValid = false;
             errorReason = 'NIS terduplikasi dalam file';
@@ -315,8 +388,8 @@ export default function Settings({
         'NIS': s.nis,
         'Nama Lengkap': s.name,
         'Kelas': s.grade,
-        'Nama Wali Murid': s.parentName,
-        'No Handphone': s.phone,
+        'Nama Wali Murid': s.parentName || '-',
+        'No Handphone': s.phone || '-',
         'Saldo (Rp)': s.balance,
         'Tanggal Pendaftaran': s.createdAt
       }));
@@ -332,7 +405,7 @@ export default function Settings({
         'Tipe Transaksi': t.type,
         'Jumlah (Rp)': t.amount,
         'Tanggal Transaksi': t.date,
-        'Catatan': t.notes,
+        'Catatan': t.notes || '-',
         'Petugas Pencatat': t.recordedBy
       }));
       const wsTransactions = XLSX.utils.json_to_sheet(transactionsExportData);
@@ -359,41 +432,88 @@ export default function Settings({
         const data = new Uint8Array(event.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
 
-        const hasStudents = workbook.SheetNames.includes('Daftar Siswa');
-        const hasTransactions = workbook.SheetNames.includes('Riwayat Transaksi');
+        // Case-insensitive sheet search for "Daftar Siswa" and "Riwayat Transaksi"
+        const findSheetName = (candidates: string[]) => {
+          return workbook.SheetNames.find(sn => 
+            candidates.some(c => sn.toLowerCase().replace(/[\s_.:-]/g, '').includes(c))
+          );
+        };
 
-        if (!hasStudents || !hasTransactions) {
-          throw new Error('Berkas tidak valid. Pastikan file Excel yang dipilih memiliki sheet "Daftar Siswa" dan "Riwayat Transaksi".');
+        const studentSheetName = findSheetName(['daftarsiswa', 'siswa', 'students']) || workbook.SheetNames[0];
+        const txSheetName = findSheetName(['riwayattransaksi', 'transaksi', 'journal', 'transactions']) || workbook.SheetNames[1];
+
+        if (!studentSheetName) {
+          throw new Error('Berkas tidak memiliki sheet data siswa yang valid.');
         }
 
         // Parse Daftar Siswa
-        const wsStudents = workbook.Sheets['Daftar Siswa'];
+        const wsStudents = workbook.Sheets[studentSheetName];
         const rawStudentsJson: any[] = XLSX.utils.sheet_to_json(wsStudents);
-        const importedStudents: Student[] = rawStudentsJson.map(row => ({
-          id: String(row['ID Siswa'] || ''),
-          nis: String(row['NIS'] || ''),
-          name: String(row['Nama Lengkap'] || ''),
-          grade: String(row['Kelas'] || '5A') as GradeClass,
-          parentName: String(row['Nama Wali Murid'] || ''),
-          phone: String(row['No Handphone'] || ''),
-          balance: Number(row['Saldo (Rp)'] || row['Saldo'] || 0),
-          createdAt: String(row['Tanggal Pendaftaran'] || new Date().toISOString())
-        })).filter(s => s.id && s.name && s.nis);
+        const importedStudents: Student[] = rawStudentsJson.map((row, index) => {
+          const name = String(row['Nama Lengkap'] || row['Nama Siswa'] || row['Nama'] || '').trim();
+          let nis = String(row['NIS'] || row['Nis'] || row['Nomor Induk'] || '').trim().replace(/\.0$/, '');
+          const id = String(row['ID Siswa'] || row['ID'] || `s-restored-${Date.now()}-${index}`);
+          const grade: GradeClass = '5';
+          const parentName = String(row['Nama Wali Murid'] || row['Nama Orang Tua'] || row['Wali'] || '').trim();
+          let phone = String(row['No Handphone'] || row['No Telepon'] || row['No. Telp'] || '').trim().replace(/\.0$/, '');
+          if (phone.startsWith('8') && phone.length >= 9) phone = '0' + phone;
+          const balance = Number(row['Saldo (Rp)'] || row['Saldo'] || row['Saldo Tabungan'] || 0);
+          const createdAt = String(row['Tanggal Pendaftaran'] || row['Tanggal'] || new Date().toISOString());
 
-        // Parse Riwayat Transaksi
-        const wsTransactions = workbook.Sheets['Riwayat Transaksi'];
-        const rawTransactionsJson: any[] = XLSX.utils.sheet_to_json(wsTransactions);
-        const importedTransactions: Transaction[] = rawTransactionsJson.map(row => ({
-          id: String(row['ID Transaksi'] || ''),
-          studentId: String(row['ID Siswa'] || ''),
-          studentName: String(row['Nama Siswa'] || ''),
-          studentGrade: '5' as GradeClass,
-          type: String(row['Tipe Transaksi'] || 'SETOR') as 'SETOR' | 'TARIK',
-          amount: Number(row['Jumlah (Rp)'] || 0),
-          date: String(row['Tanggal Transaksi'] || new Date().toISOString()),
-          notes: String(row['Catatan'] || ''),
-          recordedBy: String(row['Petugas Pencatat'] || row['Petugas'] || 'Sistem')
-        })).filter(t => t.id && t.studentId);
+          if (!nis && name) {
+            nis = `${new Date().getFullYear()}05${String(index + 1).padStart(3, '0')}`;
+          }
+
+          return {
+            id,
+            nis,
+            name,
+            grade,
+            parentName: parentName || undefined,
+            phone: phone || undefined,
+            balance,
+            createdAt
+          };
+        }).filter(s => s.name && s.nis);
+
+        // Parse Riwayat Transaksi (if available)
+        let importedTransactions: Transaction[] = [];
+        if (txSheetName && workbook.Sheets[txSheetName]) {
+          const wsTransactions = workbook.Sheets[txSheetName];
+          const rawTransactionsJson: any[] = XLSX.utils.sheet_to_json(wsTransactions);
+          importedTransactions = rawTransactionsJson.map((row, index) => {
+            const id = String(row['ID Transaksi'] || row['ID'] || `t-restored-${Date.now()}-${index}`);
+            let studentId = String(row['ID Siswa'] || '').trim();
+            const studentName = String(row['Nama Siswa'] || row['Nama'] || '').trim();
+
+            // Match student ID if missing
+            if (!studentId && studentName) {
+              const matchedStudent = importedStudents.find(s => s.name.toLowerCase() === studentName.toLowerCase());
+              if (matchedStudent) {
+                studentId = matchedStudent.id;
+              }
+            }
+
+            const typeStr = String(row['Tipe Transaksi'] || row['Tipe'] || row['Jenis Transaksi'] || 'SETOR').toUpperCase();
+            const type: 'SETOR' | 'TARIK' = (typeStr.includes('TARIK') || typeStr.includes('DEBIT')) ? 'TARIK' : 'SETOR';
+            const amount = Number(row['Jumlah (Rp)'] || row['Jumlah'] || row['Nominal (Rp)'] || row['Nominal'] || 0);
+            const date = String(row['Tanggal Transaksi'] || row['Tanggal'] || new Date().toISOString());
+            const notes = String(row['Catatan'] || row['Keterangan'] || '');
+            const recordedBy = String(row['Petugas Pencatat'] || row['Petugas'] || 'Sistem');
+
+            return {
+              id,
+              studentId: studentId || `s-gen-${index}`,
+              studentName,
+              studentGrade: '5' as GradeClass,
+              type,
+              amount,
+              date,
+              notes,
+              recordedBy
+            };
+          }).filter(t => t.amount > 0 && t.studentName);
+        }
 
         const confirmed = window.confirm(
           `Apakah Anda yakin ingin memulihkan cadangan Excel ini?\n\n` +
