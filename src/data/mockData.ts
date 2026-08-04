@@ -1,4 +1,4 @@
-import { Student, Transaction } from '../types';
+import { Student, Transaction, UserAccount } from '../types';
 
 export const INITIAL_STUDENTS: Student[] = [
   {
@@ -101,6 +101,29 @@ export const INITIAL_STUDENTS: Student[] = [
     balance: 1050000,
     createdAt: '2026-05-05T10:30:00.000Z'
   }
+];
+
+export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
+  {
+    id: 'usr-admin-1',
+    username: 'admin',
+    password: 'admin',
+    name: 'Guru / Admin Pengelola',
+    role: 'admin',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  ...INITIAL_STUDENTS.map((st) => ({
+    id: `usr-student-${st.id}`,
+    username: st.nis,
+    password: '1234',
+    name: st.name,
+    role: 'student' as const,
+    studentId: st.id,
+    studentNis: st.nis,
+    status: 'active' as const,
+    createdAt: st.createdAt
+  }))
 ];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [

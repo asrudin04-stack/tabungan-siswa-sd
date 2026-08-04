@@ -11,7 +11,7 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-import { Student, Transaction } from './types';
+import { Student, Transaction, UserAccount } from './types';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase App
@@ -25,6 +25,7 @@ export const db = initializeFirestore(app, {
 // Firestore Collection references
 export const studentsColRef = collection(db, 'students');
 export const transactionsColRef = collection(db, 'transactions');
+export const usersColRef = collection(db, 'userAccounts');
 
 /**
  * Sanitizes objects to remove undefined properties before saving to Firestore
@@ -162,3 +163,51 @@ export async function clearAllCloudDatabase() {
     throw error;
   }
 }
+
+/**
+ * Saves a single user account to Firestore
+ */
+export async function saveUserAccountToCloud(user: UserAccount) {
+  try {
+    const userDocRef = doc(db, 'userAccounts', user.id);
+    await setDoc(userDocRef, sanitizeForFirestore(user));
+  } catch (error) {
+    console.error('Error saving user account to cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Deletes a user account from Firestore
+ */
+export async function deleteUserAccountFromCloud(userId: string) {
+  try {
+    const userDocRef = doc(db, 'userAccounts', userId);
+    await deleteDoc(userDocRef);
+  } catch (error) {
+    console.error('Error deleting user account from cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Performs a batch upload of user accounts
+ */
+export async function uploadBulkUsersToCloud(users: UserAccount[]) {
+  try {
+    const batchSize = 400;
+    for (let i = 0; i < users.length; i += batchSize) {
+      const chunk = users.slice(i, i + batchSize);
+      const batch = writeBatch(db);
+      chunk.forEach((u) => {
+        const docRef = doc(db, 'userAccounts', u.id);
+        batch.set(docRef, sanitizeForFirestore(u));
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    console.error('Error uploading bulk user accounts to cloud:', error);
+    throw error;
+  }
+}
+

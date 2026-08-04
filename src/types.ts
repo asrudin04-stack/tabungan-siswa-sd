@@ -1,5 +1,26 @@
 export type GradeClass = '5';
 
+export type UserRole = 'admin' | 'student';
+
+export interface AuthUser {
+  role: UserRole;
+  name: string;
+  studentId?: string; // present when role === 'student'
+  studentNis?: string;
+}
+
+export interface UserAccount {
+  id: string;
+  username: string; // e.g. "admin" or NIS e.g. "202605001"
+  password: string; // e.g. "admin" or PIN "1234"
+  name: string;
+  role: UserRole;
+  studentId?: string;
+  studentNis?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
 export interface Student {
   id: string; // unique uuid or auto-generated
   nis: string; // Nomor Induk Siswa, e.g. "202601001"

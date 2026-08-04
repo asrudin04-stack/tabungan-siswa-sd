@@ -15,8 +15,8 @@ import {
   CloudLightning,
   CloudOff
 } from 'lucide-react';
-import { Student, Transaction } from './types';
-import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS } from './data/mockData';
+import { Student, Transaction, AuthUser, UserAccount } from './types';
+import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS, INITIAL_USER_ACCOUNTS } from './data/mockData';
 import { formatDate } from './utils';
 
 // Import Firebase references
@@ -25,11 +25,15 @@ import {
   db, 
   studentsColRef, 
   transactionsColRef, 
+  usersColRef,
   saveStudentToCloud, 
   deleteStudentFromCloud, 
   saveTransactionToCloud, 
   uploadBulkToCloud, 
-  clearAllCloudDatabase 
+  clearAllCloudDatabase,
+  saveUserAccountToCloud,
+  deleteUserAccountFromCloud,
+  uploadBulkUsersToCloud
 } from './firebase';
 
 // Import components
@@ -38,17 +42,44 @@ import Cashier from './components/Cashier';
 import StudentList from './components/StudentList';
 import RekapBulanan from './components/RekapBulanan';
 import Settings from './components/Settings';
+import LoginModal from './components/LoginModal';
+import StudentPortal from './components/StudentPortal';
 
 const LOCAL_STORAGE_KEY_STUDENTS = 'sd_pintar_students_v1';
 const LOCAL_STORAGE_KEY_TRANSACTIONS = 'sd_pintar_transactions_v1';
+const LOCAL_STORAGE_KEY_USERS = 'sd_pintar_users_v1';
+const LOCAL_STORAGE_KEY_AUTH = 'sd_pintar_auth_v1';
 
 export default function App() {
   // Navigation states: 'dashboard', 'cashier', 'students', 'rekap'
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY_AUTH);
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem(LOCAL_STORAGE_KEY_AUTH);
+  };
+
   // Core records database state
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY_USERS);
+      return stored ? JSON.parse(stored) : INITIAL_USER_ACCOUNTS;
+    } catch (e) {
+      return INITIAL_USER_ACCOUNTS;
+    }
+  });
 
   // Cloud Sync Statuses
   const [loadingCloud, setLoadingCloud] = useState<boolean>(true);
@@ -93,6 +124,13 @@ export default function App() {
           await uploadBulkToCloud(studentsToMigrate, transactionsToMigrate);
           console.log('Initial cloud migration completed successfully!');
         }
+
+        // Check user accounts collection in Firestore
+        const usersSnapshot = await getDocs(usersColRef);
+        if (usersSnapshot.empty) {
+          await uploadBulkUsersToCloud(INITIAL_USER_ACCOUNTS);
+        }
+
         setSyncStatus('synced');
       } catch (error) {
         console.error('Error during initial cloud initialization:', error);
@@ -139,9 +177,25 @@ export default function App() {
       setSyncStatus('error');
     });
 
+    // Subscribe to userAccounts list
+    const unsubscribeUsers = onSnapshot(usersColRef, (snapshot) => {
+      const cloudUsers: UserAccount[] = [];
+      snapshot.forEach((docSnap) => {
+        cloudUsers.push(docSnap.data() as UserAccount);
+      });
+      if (cloudUsers.length > 0) {
+        setUserAccounts(cloudUsers);
+        localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(cloudUsers));
+      }
+      setSyncStatus('synced');
+    }, (error) => {
+      console.error('Firestore users subscription error:', error);
+    });
+
     return () => {
       unsubscribeStudents();
       unsubscribeTransactions();
+      unsubscribeUsers();
     };
   }, []);
 
@@ -348,6 +402,48 @@ export default function App() {
     });
   };
 
+  // User Account Handlers
+  const handleAddUserAccount = (accountData: Omit<UserAccount, 'id' | 'createdAt'>) => {
+    const newAcc: UserAccount = {
+      ...accountData,
+      id: `usr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...userAccounts, newAcc];
+    setUserAccounts(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(updated));
+    saveUserAccountToCloud(newAcc).catch(e => console.error('Failed to save user account to cloud:', e));
+  };
+
+  const handleUpdateUserAccount = (updatedAcc: UserAccount) => {
+    const updated = userAccounts.map(u => u.id === updatedAcc.id ? updatedAcc : u);
+    setUserAccounts(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(updated));
+    saveUserAccountToCloud(updatedAcc).catch(e => console.error('Failed to update user account to cloud:', e));
+  };
+
+  const handleDeleteUserAccount = (id: string) => {
+    const updated = userAccounts.filter(u => u.id !== id);
+    setUserAccounts(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(updated));
+    deleteUserAccountFromCloud(id).catch(e => console.error('Failed to delete user account from cloud:', e));
+  };
+
+  const handleImportUserAccounts = (newAccounts: UserAccount[]) => {
+    const combined = [...userAccounts];
+    newAccounts.forEach(acc => {
+      const idx = combined.findIndex(u => u.id === acc.id || u.username.toLowerCase() === acc.username.toLowerCase());
+      if (idx >= 0) {
+        combined[idx] = acc;
+      } else {
+        combined.push(acc);
+      }
+    });
+    setUserAccounts(combined);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(combined));
+    uploadBulkUsersToCloud(newAccounts).catch(e => console.error('Failed to bulk upload user accounts to cloud:', e));
+  };
+
   // Cross-component navigations (e.g., clicking top saver goes to student ledger card)
   const handleViewStudentFromDashboard = (student: Student) => {
     setDashboardSelectedStudent(student);
@@ -357,6 +453,37 @@ export default function App() {
   // UI Date time string
   const currentLocalDateString = formatDate(new Date().toISOString());
 
+  // 1. If not logged in, show Login Screen
+  if (!currentUser) {
+    return (
+      <LoginModal
+        students={students}
+        userAccounts={userAccounts}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEY_AUTH, JSON.stringify(user));
+          } catch (e) {
+            console.error('Failed to save auth state:', e);
+          }
+        }}
+      />
+    );
+  }
+
+  // 2. If logged in as Student, render Student Portal (Siswa View Only)
+  if (currentUser.role === 'student') {
+    return (
+      <StudentPortal
+        currentUser={currentUser}
+        students={students}
+        transactions={transactions}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // 3. Admin View (Full Access)
   return (
     <div className="min-h-screen bg-slate-50 lg:h-screen flex flex-col lg:flex-row font-sans text-slate-800 antialiased overflow-hidden" id="school-savings-main-app">
       
@@ -444,7 +571,7 @@ export default function App() {
         <div className="p-4 border-t border-slate-100">
           <div className="bg-indigo-650 rounded-2xl p-4 text-white relative overflow-hidden group">
             <div className="absolute right-[-10px] bottom-[-10px] w-16 h-16 bg-white/10 rounded-full blur-sm" />
-            <p className="text-[9px] opacity-80 uppercase tracking-widest font-extrabold mb-1">Status Operasional</p>
+            <p className="text-[9px] opacity-80 uppercase tracking-widest font-extrabold mb-1">Status Operasional Admin</p>
             <p className="text-xs font-bold truncate">SD NEGERI 1 GEMBLENGAN</p>
             <div className="flex items-center gap-1.5 mt-2">
               <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${syncStatus === 'error' ? 'bg-rose-400' : 'bg-emerald-400'}`} />
@@ -469,10 +596,12 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => alert('Sesi Transaksi SD Negeri 1 Gemblengan telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
-            className="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 border border-slate-200 rounded-lg"
+            onClick={handleLogout}
+            className="p-1.5 text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 rounded-lg flex items-center gap-1 text-xs font-bold"
+            title="Keluar Admin"
           >
             <LogOut size={14} />
+            <span>Keluar</span>
           </button>
         </div>
       </header>
@@ -489,7 +618,7 @@ export default function App() {
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}
               {activeTab === 'settings' && 'Pengaturan Aplikasi & Impor Massal'}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">Hai, Admin Operasional • SD NEGERI 1 GEMBLENGAN • Kas Terbuka</p>
+            <p className="text-xs text-slate-500 mt-0.5">Hai, {currentUser.name} • SD NEGERI 1 GEMBLENGAN • Kas Terbuka</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-end text-right">
@@ -501,11 +630,11 @@ export default function App() {
             <div className="h-8 w-px bg-slate-200" />
             <button 
               id="logout-btn-mock-sidebar"
-              onClick={() => alert('Sesi Transaksi SD Negeri 1 Gemblengan telah dikunci demi keamanan. Silakan muat ulang halaman untuk membuka.')}
+              onClick={handleLogout}
               className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-100 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
-              title="Lock Session"
+              title="Keluar / Ganti Akun"
             >
-              <LogOut size={13} /> Kunci Sesi
+              <LogOut size={13} /> Keluar Admin
             </button>
           </div>
         </header>
@@ -598,10 +727,15 @@ export default function App() {
               <Settings 
                 students={students}
                 transactions={transactions}
+                userAccounts={userAccounts}
                 onImportData={handleImportData}
                 onClearDatabase={handleClearDatabase}
                 onAddStudent={handleAddStudent}
                 onBulkImportStudents={handleBulkImportStudents}
+                onAddUserAccount={handleAddUserAccount}
+                onUpdateUserAccount={handleUpdateUserAccount}
+                onDeleteUserAccount={handleDeleteUserAccount}
+                onImportUserAccounts={handleImportUserAccounts}
               />
             )}
           </div>

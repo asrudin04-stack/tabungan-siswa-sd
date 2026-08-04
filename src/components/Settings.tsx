@@ -17,33 +17,78 @@ import {
   HelpCircle,
   Sparkles,
   FileCheck2,
-  Phone
+  Phone,
+  UserPlus,
+  Edit3,
+  Key,
+  ShieldCheck,
+  UserCheck,
+  Search,
+  Filter,
+  X,
+  FileUp,
+  FileDown,
+  UserX,
+  Eye,
+  EyeOff,
+  UserCog
 } from 'lucide-react';
-import { Student, Transaction, GradeClass } from '../types';
+import { Student, Transaction, GradeClass, UserAccount } from '../types';
 import { formatCurrency, formatDate } from '../utils';
 
 interface SettingsProps {
   students: Student[];
   transactions: Transaction[];
+  userAccounts: UserAccount[];
   onImportData: (importedStudents: Student[], importedTransactions: Transaction[]) => void;
   onClearDatabase: () => void;
   onAddStudent: (student: Omit<Student, 'id' | 'createdAt' | 'balance'>, initialDeposit: number) => Student;
   onBulkImportStudents: (newStudentsList: Array<Omit<Student, 'id' | 'createdAt' | 'balance'> & { initialDeposit: number }>) => void;
+  onAddUserAccount: (account: Omit<UserAccount, 'id' | 'createdAt'>) => void;
+  onUpdateUserAccount: (account: UserAccount) => void;
+  onDeleteUserAccount: (id: string) => void;
+  onImportUserAccounts: (newAccounts: UserAccount[]) => void;
 }
 
 export default function Settings({ 
   students, 
   transactions, 
+  userAccounts,
   onImportData, 
   onClearDatabase,
   onAddStudent,
-  onBulkImportStudents
+  onBulkImportStudents,
+  onAddUserAccount,
+  onUpdateUserAccount,
+  onDeleteUserAccount,
+  onImportUserAccounts
 }: SettingsProps) {
+  // Main Settings Section Tab
+  const [activeSettingSection, setActiveSettingSection] = useState<'USERS' | 'IMPORT_STUDENTS' | 'BACKUP'>('USERS');
+
   // Database backup actions states
   const [dbStateMsg, setDbStateMsg] = useState<{ text: string; success: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resetCodeInput, setResetCodeInput] = useState('');
   const [showConfirmResetPanel, setShowConfirmResetPanel] = useState(false);
+
+  // User Management States
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userFilterRole, setUserFilterRole] = useState<'ALL' | 'admin' | 'student'>('ALL');
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+
+  // User Form Modal Fields
+  const [userFormUsername, setUserFormUsername] = useState('');
+  const [userFormPassword, setUserFormPassword] = useState('');
+  const [userFormName, setUserFormName] = useState('');
+  const [userFormRole, setUserFormRole] = useState<'admin' | 'student'>('student');
+  const [userFormStudentId, setUserFormStudentId] = useState('');
+  const [userFormStatus, setUserFormStatus] = useState<'active' | 'inactive'>('active');
+  const [userFormError, setUserFormError] = useState('');
+
+  const userInputRef = useRef<HTMLInputElement>(null);
 
   // Raw bulk-import tab & text area states
   const [importMode, setImportMode] = useState<'EXCEL' | 'TEXT'>('EXCEL');
@@ -64,6 +109,248 @@ export default function Settings({
     errorReason?: string;
   }>>([]);
   const [isParsed, setIsParsed] = useState(false);
+
+  // --- USER MANAGEMENT HANDLERS ---
+  const handleOpenAddUserModal = () => {
+    setEditingUser(null);
+    setUserFormUsername('');
+    setUserFormPassword('1234');
+    setUserFormName('');
+    setUserFormRole('student');
+    setUserFormStudentId('');
+    setUserFormStatus('active');
+    setUserFormError('');
+    setShowUserModal(true);
+  };
+
+  const handleOpenEditUserModal = (acc: UserAccount) => {
+    setEditingUser(acc);
+    setUserFormUsername(acc.username);
+    setUserFormPassword(acc.password);
+    setUserFormName(acc.name);
+    setUserFormRole(acc.role);
+    setUserFormStudentId(acc.studentId || '');
+    setUserFormStatus(acc.status);
+    setUserFormError('');
+    setShowUserModal(true);
+  };
+
+  const handleSaveUserForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserFormError('');
+
+    const username = userFormUsername.trim();
+    const password = userFormPassword.trim();
+    const name = userFormName.trim();
+
+    if (!username || !password || !name) {
+      setUserFormError('Username, Password/PIN, dan Nama Lengkap wajib diisi.');
+      return;
+    }
+
+    // Check duplicate username if adding new or changing username
+    const existingWithSameUser = userAccounts.find(
+      u => u.username.toLowerCase() === username.toLowerCase() && u.id !== editingUser?.id
+    );
+    if (existingWithSameUser) {
+      setUserFormError(`Username "${username}" sudah digunakan oleh akun lain.`);
+      return;
+    }
+
+    const selectedStudent = students.find(s => s.id === userFormStudentId);
+
+    if (editingUser) {
+      onUpdateUserAccount({
+        ...editingUser,
+        username,
+        password,
+        name,
+        role: userFormRole,
+        studentId: userFormRole === 'student' ? userFormStudentId || undefined : undefined,
+        studentNis: userFormRole === 'student' ? (selectedStudent?.nis || username) : undefined,
+        status: userFormStatus
+      });
+      setDbStateMsg({ text: `Berhasil memperbarui data akun ${name}.`, success: true });
+    } else {
+      onAddUserAccount({
+        username,
+        password,
+        name,
+        role: userFormRole,
+        studentId: userFormRole === 'student' ? userFormStudentId || undefined : undefined,
+        studentNis: userFormRole === 'student' ? (selectedStudent?.nis || username) : undefined,
+        status: userFormStatus
+      });
+      setDbStateMsg({ text: `Berhasil menambahkan akun user ${name}.`, success: true });
+    }
+
+    setShowUserModal(false);
+    setEditingUser(null);
+    setTimeout(() => setDbStateMsg(null), 3000);
+  };
+
+  const handleToggleUserStatus = (acc: UserAccount) => {
+    const updatedStatus = acc.status === 'active' ? 'inactive' : 'active';
+    onUpdateUserAccount({
+      ...acc,
+      status: updatedStatus
+    });
+    setDbStateMsg({ 
+      text: `Status akun ${acc.name} diubah menjadi ${updatedStatus === 'active' ? 'Aktif' : 'Nonaktif'}.`, 
+      success: true 
+    });
+    setTimeout(() => setDbStateMsg(null), 3000);
+  };
+
+  const handleDeleteUser = (acc: UserAccount) => {
+    if (userAccounts.filter(u => u.role === 'admin' && u.status === 'active').length <= 1 && acc.role === 'admin') {
+      alert('Tidak dapat menghapus akun Admin aktif terakhir demi keamanan sistem!');
+      return;
+    }
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus akun login "${acc.name}" (${acc.username})?`)) {
+      onDeleteUserAccount(acc.id);
+      setDbStateMsg({ text: `Akun ${acc.name} telah dihapus dari sistem.`, success: true });
+      setTimeout(() => setDbStateMsg(null), 3000);
+    }
+  };
+
+  const handleExportUsersExcel = () => {
+    const exportData = userAccounts.map((acc, index) => ({
+      'No': index + 1,
+      'Username / ID': acc.username,
+      'Password / PIN': acc.password,
+      'Nama Lengkap': acc.name,
+      'Peran Akses': acc.role === 'admin' ? 'Administrator' : 'Siswa',
+      'NIS Siswa': acc.studentNis || '-',
+      'Status Akun': acc.status === 'active' ? 'Aktif' : 'Nonaktif',
+      'Tanggal Dibuat': formatDate(acc.createdAt)
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Daftar User Login');
+    XLSX.writeFile(workbook, `Daftar_User_Login_SDN1Gemblengan_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+    setDbStateMsg({ text: 'Berhasil mengunduh daftar akun user dalam format Excel!', success: true });
+    setTimeout(() => setDbStateMsg(null), 3000);
+  };
+
+  const handleImportUsersFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    if (file.name.endsWith('.json')) {
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target?.result as string);
+          if (Array.isArray(parsed)) {
+            const validUsers: UserAccount[] = parsed.map((item, idx) => ({
+              id: item.id || `usr-imp-${Date.now()}-${idx}`,
+              username: String(item.username || item.NIS || `user_${idx}`).trim(),
+              password: String(item.password || item.PIN || '1234').trim(),
+              name: String(item.name || item.Nama || 'User Impor').trim(),
+              role: (item.role === 'admin' || item.role === 'Administrator') ? 'admin' : 'student',
+              studentId: item.studentId || undefined,
+              studentNis: item.studentNis || item.NIS || undefined,
+              status: item.status === 'inactive' || item.status === 'Nonaktif' ? 'inactive' : 'active',
+              createdAt: item.createdAt || new Date().toISOString()
+            }));
+
+            onImportUserAccounts(validUsers);
+            setDbStateMsg({ text: `Alhamdulillah! Berhasil mengimpor ${validUsers.length} akun user login dari file JSON.`, success: true });
+            setTimeout(() => setDbStateMsg(null), 4000);
+          } else {
+            setDbStateMsg({ text: 'Format file JSON user tidak valid. Diharapkan array JSON.', success: false });
+          }
+        } catch (err) {
+          setDbStateMsg({ text: 'Gagal membaca file JSON user.', success: false });
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      // Excel / CSV file
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+          if (jsonData.length === 0) {
+            setDbStateMsg({ text: 'File Excel kosong atau format tidak sesuai.', success: false });
+            return;
+          }
+
+          const newAccounts: UserAccount[] = jsonData.map((row, idx) => {
+            const username = String(row['Username / ID'] || row['Username'] || row['NIS'] || row['nis'] || `user_${idx}`).trim();
+            const password = String(row['Password / PIN'] || row['Password'] || row['PIN'] || '1234').trim();
+            const name = String(row['Nama Lengkap'] || row['Nama'] || row['name'] || 'User Impor').trim();
+            const rawRole = String(row['Peran Akses'] || row['Role'] || row['role'] || 'student').toLowerCase();
+            const role = rawRole.includes('admin') ? 'admin' as const : 'student' as const;
+            const nis = String(row['NIS Siswa'] || row['NIS'] || row['nis'] || '').trim();
+            
+            const matchedStudent = students.find(s => s.nis === nis);
+
+            return {
+              id: `usr-xl-${Date.now()}-${idx}`,
+              username,
+              password,
+              name,
+              role,
+              studentId: matchedStudent?.id,
+              studentNis: nis || matchedStudent?.nis,
+              status: 'active' as const,
+              createdAt: new Date().toISOString()
+            };
+          });
+
+          onImportUserAccounts(newAccounts);
+          setDbStateMsg({ text: `Alhamdulillah! Berhasil mengimpor ${newAccounts.length} akun user dari Excel.`, success: true });
+          setTimeout(() => setDbStateMsg(null), 4000);
+        } catch (err: any) {
+          setDbStateMsg({ text: 'Gagal menguraikan file Excel user: ' + err.message, success: false });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    if (e.target) e.target.value = '';
+  };
+
+  const handleAutoGenerateStudentAccounts = () => {
+    const missingStudents = students.filter(
+      s => !userAccounts.some(u => u.studentId === s.id || u.studentNis === s.nis || u.username === s.nis)
+    );
+
+    if (missingStudents.length === 0) {
+      setDbStateMsg({ text: 'Semua siswa sudah memiliki akun login aktif di sistem!', success: true });
+      setTimeout(() => setDbStateMsg(null), 3000);
+      return;
+    }
+
+    const generatedUsers: UserAccount[] = missingStudents.map(st => ({
+      id: `usr-gen-${st.id}`,
+      username: st.nis,
+      password: '1234',
+      name: st.name,
+      role: 'student' as const,
+      studentId: st.id,
+      studentNis: st.nis,
+      status: 'active' as const,
+      createdAt: new Date().toISOString()
+    }));
+
+    onImportUserAccounts(generatedUsers);
+    setDbStateMsg({ 
+      text: `Berhasil membuat ${generatedUsers.length} akun login baru untuk siswa secara otomatis dengan PIN default "1234".`, 
+      success: true 
+    });
+    setTimeout(() => setDbStateMsg(null), 5000);
+  };
 
   // Parser helper matching typical raw text separated by Comma, Semicolon or Tab
   const handleParseText = () => {
@@ -551,6 +838,16 @@ export default function Settings({
     }
   };
 
+  // Filtered User Accounts list
+  const filteredUsers = userAccounts.filter(acc => {
+    const matchesRole = userFilterRole === 'ALL' || acc.role === userFilterRole;
+    const matchesQuery = !userSearchQuery.trim() || 
+      acc.username.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      acc.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+      (acc.studentNis && acc.studentNis.includes(userSearchQuery));
+    return matchesRole && matchesQuery;
+  });
+
   return (
     <div className="space-y-6 animate-fade-in" id="settings-management-container">
       
@@ -581,257 +878,724 @@ export default function Settings({
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* PANEL UTAMA: MASUKKAN DATA ANAK MASSAL (IMPORT) */}
-        <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#6366f1] lg:col-span-2 space-y-6 flex flex-col justify-between" id="bulk-import-card">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg inline-flex border border-indigo-200">
-                <Users size={16} />
+      {/* Navigation Section Tabs */}
+      <div className="bg-white p-2 rounded-2xl border-2 border-slate-900 shadow-[4px_4px_0px_0px_#0284c7] flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveSettingSection('USERS')}
+          className={`py-2.5 px-4 rounded-xl border-2 font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+            activeSettingSection === 'USERS'
+              ? 'bg-amber-400 text-slate-900 border-slate-900 shadow-[2px_2px_0px_0px_#0284c7]'
+              : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'
+          }`}
+        >
+          <UserCog size={16} />
+          <span>Kelola User Login</span>
+          <span className="px-2 py-0.5 bg-slate-900 text-white rounded-md text-[10px] font-mono">
+            {userAccounts.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSettingSection('IMPORT_STUDENTS')}
+          className={`py-2.5 px-4 rounded-xl border-2 font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+            activeSettingSection === 'IMPORT_STUDENTS'
+              ? 'bg-indigo-600 text-white border-slate-900 shadow-[2px_2px_0px_0px_#0284c7]'
+              : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'
+          }`}
+        >
+          <Users size={16} />
+          <span>Impor Massal Siswa</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSettingSection('BACKUP')}
+          className={`py-2.5 px-4 rounded-xl border-2 font-black text-xs transition-all flex items-center gap-2 cursor-pointer ${
+            activeSettingSection === 'BACKUP'
+              ? 'bg-sky-500 text-white border-slate-900 shadow-[2px_2px_0px_0px_#0284c7]'
+              : 'bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100'
+          }`}
+        >
+          <Database size={16} />
+          <span>Pencadangan & Cloud</span>
+        </button>
+      </div>
+
+      {/* SECTION 1: MANAJEMEN USER LOGIN */}
+      {activeSettingSection === 'USERS' && (
+        <div className="space-y-6">
+          {/* User Stats Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-2xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0284c7]">
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Total Akun Register</span>
+              <span className="text-2xl font-black text-slate-900 font-mono mt-1 block">{userAccounts.length}</span>
+              <span className="text-[10px] text-slate-500 font-bold mt-1 block">Akun aktif terdaftar</span>
+            </div>
+            <div className="bg-amber-50 p-4 rounded-2xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#d97706]">
+              <span className="text-[10px] font-extrabold uppercase text-amber-700 block flex items-center gap-1">
+                <ShieldCheck size={12} /> Admin / Guru
               </span>
-              <h2 className="text-lg font-black text-slate-950">Impor Data Siswa Secara Massal</h2>
+              <span className="text-2xl font-black text-amber-950 font-mono mt-1 block">
+                {userAccounts.filter(u => u.role === 'admin').length}
+              </span>
+              <span className="text-[10px] text-amber-800 font-bold mt-1 block">Akses Administrator</span>
             </div>
-            <p className="text-xs text-slate-500 font-medium">
-              Bapak/Ibu Guru tidak perlu memasukkan nama siswa satu per satu! Unggah file roster Excel kelas Anda atau tempel salinan data di sini.
-            </p>
-
-            {/* Tab Switcher */}
-            <div className="flex border-b border-slate-200 mt-4">
-              <button
-                onClick={() => {
-                  setImportMode('EXCEL');
-                  setIsParsed(false);
-                  setParsedPreviewList([]);
-                }}
-                className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  importMode === 'EXCEL'
-                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <FileSpreadsheet size={14} /> Unggah File Excel (.xlsx / .xls)
-              </button>
-              <button
-                onClick={() => {
-                  setImportMode('TEXT');
-                  setIsParsed(false);
-                  setParsedPreviewList([]);
-                }}
-                className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                  importMode === 'TEXT'
-                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Clipboard size={14} /> Tempel Teks Manual (CSV)
-              </button>
+            <div className="bg-sky-50 p-4 rounded-2xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0284c7]">
+              <span className="text-[10px] font-extrabold uppercase text-sky-700 block flex items-center gap-1">
+                <UserCheck size={12} /> Akun Siswa
+              </span>
+              <span className="text-2xl font-black text-sky-950 font-mono mt-1 block">
+                {userAccounts.filter(u => u.role === 'student').length}
+              </span>
+              <span className="text-[10px] text-sky-800 font-bold mt-1 block">Portal Siswa Kelas 5</span>
             </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#64748b]">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 block flex items-center gap-1">
+                <UserX size={12} /> Status Nonaktif
+              </span>
+              <span className="text-2xl font-black text-slate-700 font-mono mt-1 block">
+                {userAccounts.filter(u => u.status === 'inactive').length}
+              </span>
+              <span className="text-[10px] text-slate-500 font-bold mt-1 block">Dikunci sementara</span>
+            </div>
+          </div>
 
-            {importMode === 'EXCEL' ? (
-              <div className="space-y-4 mt-4 animate-fade-in">
-                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-xs text-slate-750 space-y-3">
-                  <p className="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Info size={14} className="stroke-[2.5]" /> Petunjuk Impor Excel:
-                  </p>
-                  <p className="leading-relaxed text-xs">
-                    Sistem akan mencocokkan kolom secara otomatis. Pastikan file Excel Anda minimal berisi kolom <strong>NIS</strong>, <strong>Nama Siswa</strong>, dan <strong>Kelas</strong> (5A atau 5B). Klik tombol di bawah ini untuk mengunduh template Excel siap pakai.
-                  </p>
-                  <button
-                    onClick={handleDownloadTemplate}
-                    className="px-4 py-2 bg-white hover:bg-slate-100 text-indigo-700 font-bold border border-indigo-300 rounded-lg shadow-sm transition-all text-[11px] cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Download size={12} className="stroke-[2.5]" /> Unduh Template Impor Excel (.xlsx)
-                  </button>
-                </div>
-
-                <div 
-                  onClick={() => studentExcelInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/30 p-8 rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group shadow-sm"
-                >
-                  <span className="p-3 bg-white text-indigo-600 rounded-full border border-slate-250 group-hover:scale-105 transition-transform shadow-inner">
-                    <FileSpreadsheet size={24} />
-                  </span>
-                  <div>
-                    <p className="text-xs font-extrabold text-slate-800">Klik untuk memilih atau jatuhkan file Excel Anda</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-1">Format dokumen yang didukung: .xlsx atau .xls</p>
-                  </div>
-                </div>
-
-                <input 
-                  type="file"
-                  ref={studentExcelInputRef}
-                  className="hidden"
-                  accept=".xlsx, .xls"
-                  onChange={handleExcelStudentImport}
+          {/* User Controls Action Bar */}
+          <div className="bg-white p-4 rounded-2xl border-2 border-slate-900 shadow-[4px_4px_0px_0px_#0284c7] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex flex-1 items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="Cari username, nama, atau NIS..."
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-xs focus:outline-none focus:bg-white focus:border-amber-500"
                 />
               </div>
-            ) : (
-              <div className="space-y-4 mt-4 animate-fade-in">
-                {/* Template format guidelines */}
-                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-slate-700 space-y-2">
-                  <p className="font-bold text-amber-900 flex items-center gap-1.5 leading-none">
-                    <Info size={14} className="stroke-[2.5]" /> Format Penulisan Teks:
-                  </p>
-                  <p className="font-mono bg-white p-2.5 rounded border border-amber-200 font-bold overflow-x-auto text-[11px]">
-                    Nama Siswa, Kelas, NIS, Nama Wali Murid, No Handphone, Saldo Awal (Opsional)
-                  </p>
-                  <div className="space-y-1 mt-2 pl-1 leading-normal text-slate-600 font-medium">
-                    <p>💡 <em>Contoh:</em> <code className="font-mono text-indigo-700 font-bold bg-white px-1 py-0.2 rounded">Andika Saputra, 5A, 12009, Herman, 081234, 50000</code></p>
-                    <p>💡 Gunakan tanda koma (,), titik koma (;), atau tombol tab sebagai pemisah antar kolom siswa Anda.</p>
-                  </div>
-                </div>
 
-                {/* Input target block */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider block">
-                    Salin & Tempel Roster Kelas Di Sini
-                  </label>
-                  <textarea
-                    value={rawPasteText}
-                    onChange={(e) => {
-                      setRawPasteText(e.target.value);
-                      setIsParsed(false);
-                    }}
-                    rows={6}
-                    placeholder="Andi Wijaya, 5A, 2026101, Herman, 08129999, 10000&#10;Siti Aminah, 5B, 2026102, Bambang, 08138888, 5000"
-                    className="w-full bg-slate-50 p-4 border-2 border-slate-900 rounded-xl text-xs font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white tracking-wide transition-all shadow-[2px_2px_0px_0px_#000]"
-                    id="raw-import-students-textarea"
-                  />
-                </div>
-
-                <div className="pt-1">
-                  <button
-                    onClick={handleParseText}
-                    className="px-5 py-3 bg-white hover:bg-amber-100 text-slate-900 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
-                    id="parse-import-text-btn"
-                  >
-                    <RefreshCw size={14} className="stroke-[2.5]" /> Analisis Struktur Data Teks
-                  </button>
-                </div>
+              <div className="flex items-center gap-1 bg-slate-50 border-2 border-slate-900 rounded-xl px-2.5 py-1.5">
+                <Filter size={14} className="text-slate-500" />
+                <select
+                  value={userFilterRole}
+                  onChange={(e) => setUserFilterRole(e.target.value as any)}
+                  className="bg-transparent font-bold text-xs text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">Semua Peran</option>
+                  <option value="admin">Administrator</option>
+                  <option value="student">Akses Siswa</option>
+                </select>
               </div>
-            )}
-          </div>
-
-          <div className="flex gap-3 mt-4 pt-1">
-            {isParsed && parsedPreviewList.length > 0 && (
-              <button
-                onClick={handleExecuteImport}
-                className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#047857] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#047857] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
-                id="execute-import-students-btn"
-              >
-                <Check size={14} className="stroke-[3]" /> Simpan Hasil Impor ({parsedPreviewList.filter(p => p.isValid).length} Siswa Baru)
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* PANEL SAMPING: CADANGAN & PEMILIHAN (BACKUP & RESTORE) */}
-        <div className="space-y-6 lg:col-span-1" id="backup-utilities-column">
-          
-          {/* Back Up, Restore, Clean DB panel */}
-          <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#f59e0b] space-y-5" id="backup-menu-card">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg inline-flex border border-amber-200">
-                <Database size={16} />
-              </span>
-              <h2 className="text-lg font-black text-slate-950">Cadangkan / Ekspor Data</h2>
             </div>
-            <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Disarankan untuk mencadangkan data tabungan secara berkala. Seluruh pembukuan tabungan saat ini akan diunduh sebagai file backup Excel (.xlsx) tunggal yang dapat disimpan aman di komputer Anda.
-            </p>
 
-            <div className="space-y-2.5 pt-2">
-              {/* Back Up Action File */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={handleExportSystemBackup}
-                className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
-                id="btn-major-export-backup"
-                title="Download data tabungan saat ini sebagai file Excel (.xlsx)"
+                type="button"
+                onClick={handleOpenAddUserModal}
+                className="py-2 px-3.5 bg-amber-400 hover:bg-amber-300 text-slate-900 border-2 border-slate-900 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#0284c7] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
               >
-                <Download size={15} className="stroke-[2.5]" /> Unduh File Cadangan (.XLSX)
+                <UserPlus size={15} />
+                <span>Tambah User</span>
               </button>
 
-              {/* Restore Action File */}
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
-                id="btn-major-import-restore"
-                title="Muat data cadangan Excel untuk memulihkan tabungan"
+                type="button"
+                onClick={handleExportUsersExcel}
+                className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-400 text-white border-2 border-slate-900 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#0284c7] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+                title="Ekspor daftar user ke file Excel"
               >
-                <Upload size={15} className="stroke-[2.5]" /> Pulihkan Cadangan dari Excel
+                <FileDown size={15} />
+                <span>Ekspor Excel</span>
               </button>
-              
-              <input 
+
+              <button
+                type="button"
+                onClick={() => userInputRef.current?.click()}
+                className="py-2 px-3.5 bg-sky-500 hover:bg-sky-400 text-white border-2 border-slate-900 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#0284c7] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+                title="Impor user dari Excel (.xlsx) atau JSON"
+              >
+                <FileUp size={15} />
+                <span>Impor User</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAutoGenerateStudentAccounts}
+                className="py-2 px-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-2 border-slate-900 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#0284c7] cursor-pointer"
+                title="Buat PIN login otomatis untuk semua siswa yang belum memiliki akun"
+              >
+                <Sparkles size={15} className="text-amber-500" />
+                <span>Auto-Buat Akun Siswa</span>
+              </button>
+
+              <input
                 type="file"
-                ref={fileInputRef}
+                ref={userInputRef}
                 className="hidden"
-                accept=".xlsx, .xls"
-                onChange={handleRestoreSystemBackup}
+                accept=".xlsx, .xls, .json, .csv"
+                onChange={handleImportUsersFile}
               />
             </div>
           </div>
 
-          {/* DANGER AREA: DELETE ALL DATA */}
-          <div className="bg-rose-50 p-6 rounded-2xl border-2 border-rose-900 shadow-[5px_5px_0px_0px_#e11d48] space-y-4" id="danger-wipe-card">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="p-1.5 bg-rose-100 text-rose-700 rounded-lg inline-flex border border-rose-200">
-                <Trash2 size={16} />
+          {/* User Accounts Table */}
+          <div className="bg-white rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#0284c7] overflow-hidden">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="font-black text-sm flex items-center gap-2">
+                <UserCog size={18} className="text-amber-400" />
+                Daftar Akun User Login SD Negeri 1 Gemblengan
+              </h3>
+              <span className="text-xs font-bold text-amber-300 font-mono">
+                {filteredUsers.length} Akun Ditampilkan
               </span>
-              <h2 className="text-lg font-black text-rose-950">Zona Bahaya (Risiko Tinggi)</h2>
             </div>
-            <p className="text-xs text-rose-800 font-semibold leading-relaxed">
-              Tindakan ini akan menghapus <strong>SELURUH data siswa dan semua riwayat transaksinya</strong> secara permanen dari peranti ini. Pastikan Anda telah mengunduh file cadangan Anda!
-            </p>
 
-            {!showConfirmResetPanel ? (
-              <button
-                onClick={() => setShowConfirmResetPanel(true)}
-                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
-                id="show-wipe-authorizer-panel"
-              >
-                <Trash2 size={14} className="stroke-[2.5]" /> Hapus Seluruh Database
-              </button>
-            ) : (
-              <div className="bg-white p-4 border border-rose-250 rounded-xl space-y-3 animate-fade-in" id="confirm-reset-sub-panel">
-                <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest leading-none flex items-center gap-1">
-                  <AlertTriangle size={12} /> Ketik "RESET" Untuk Melanjutkan:
-                </p>
-                <input
-                  type="text"
-                  value={resetCodeInput}
-                  onChange={(e) => setResetCodeInput(e.target.value)}
-                  placeholder="Ketik RESET"
-                  className="w-full px-3 py-2 text-xs font-black uppercase text-center border-2 border-slate-900 rounded-lg bg-rose-50/55 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  id="reset-state-safety-code"
-                />
-                <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100 border-b-2 border-slate-900 font-black text-slate-800">
+                    <th className="p-3">Username / ID Login</th>
+                    <th className="p-3">Nama Lengkap</th>
+                    <th className="p-3">Peran Akses</th>
+                    <th className="p-3">Password / PIN</th>
+                    <th className="p-3">Siswa Terhubung</th>
+                    <th className="p-3 text-center">Status</th>
+                    <th className="p-3 text-center">Tindakan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 font-bold text-slate-800">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
+                        Tidak ada data akun user yang cocok dengan pencarian.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((acc) => {
+                      const isPassVisible = !!showPasswords[acc.id];
+                      return (
+                        <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono text-slate-900 font-extrabold">
+                            <span className="bg-slate-100 px-2 py-1 rounded-md border border-slate-300">
+                              {acc.username}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-900">{acc.name}</td>
+                          <td className="p-3">
+                            {acc.role === 'admin' ? (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 border border-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full text-[10px] font-black">
+                                <ShieldCheck size={12} className="text-amber-600" /> Administrator
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-sky-100 border border-sky-400 text-sky-950 px-2.5 py-0.5 rounded-full text-[10px] font-black">
+                                <UserCheck size={12} className="text-sky-600" /> Siswa Kelas 5
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-1.5 font-mono">
+                              <span className="bg-slate-100 px-2 py-1 rounded border border-slate-200 min-w-[60px] inline-block text-center text-slate-900 font-black">
+                                {isPassVisible ? acc.password : '••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords(prev => ({ ...prev, [acc.id]: !prev[acc.id] }))}
+                                className="p-1 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-200"
+                                title={isPassVisible ? 'Sembunyikan' : 'Tampilkan PIN'}
+                              >
+                                {isPassVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3 text-slate-600">
+                            {acc.studentNis ? (
+                              <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-800">
+                                NIS: {acc.studentNis}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-normal">-</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(acc)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-black border transition-all cursor-pointer ${
+                                acc.status === 'active'
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400 hover:bg-emerald-200'
+                                  : 'bg-rose-100 text-rose-900 border-rose-400 hover:bg-rose-200'
+                              }`}
+                              title="Klik untuk mengubah status aktif/nonaktif"
+                            >
+                              {acc.status === 'active' ? '● Aktif' : '○ Nonaktif'}
+                            </button>
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditUserModal(acc)}
+                                className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 rounded-lg font-bold transition-all"
+                                title="Edit Akun User"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(acc)}
+                                className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-400 rounded-lg font-bold transition-all"
+                                title="Hapus Akun User"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORM TAMBAH / EDIT USER */}
+      <AnimatePresence>
+        {showUserModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-3xl border-4 border-slate-900 shadow-[8px_8px_0px_0px_#0284c7] overflow-hidden my-8"
+            >
+              <div className="bg-slate-900 p-5 text-white flex items-center justify-between border-b-4 border-slate-900">
+                <div className="flex items-center gap-2">
+                  <UserCog className="text-amber-400" size={20} />
+                  <h3 className="font-black text-base">
+                    {editingUser ? 'Edit Akun User Login' : 'Tambah Akun User Baru'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowUserModal(false)}
+                  className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveUserForm} className="p-6 space-y-4">
+                {userFormError && (
+                  <div className="bg-rose-50 border-2 border-rose-300 p-3 rounded-2xl flex items-center gap-2 text-xs text-rose-800 font-bold">
+                    <AlertTriangle size={16} className="text-rose-600 flex-shrink-0" />
+                    <span>{userFormError}</span>
+                  </div>
+                )}
+
+                {/* Peran Akses */}
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                    Peran / Hak Akses (Role)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 font-bold text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserFormRole('admin');
+                        if (!userFormUsername) setUserFormUsername('admin');
+                      }}
+                      className={`py-2.5 px-3 rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all ${
+                        userFormRole === 'admin'
+                          ? 'bg-amber-400 border-slate-900 text-slate-900 font-black shadow-[2px_2px_0px_0px_#0284c7]'
+                          : 'bg-slate-50 border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      <ShieldCheck size={16} /> Admin / Guru
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUserFormRole('student')}
+                      className={`py-2.5 px-3 rounded-xl border-2 flex items-center justify-center gap-1.5 transition-all ${
+                        userFormRole === 'student'
+                          ? 'bg-sky-400 border-slate-900 text-slate-900 font-black shadow-[2px_2px_0px_0px_#0284c7]'
+                          : 'bg-slate-50 border-slate-300 text-slate-600'
+                      }`}
+                    >
+                      <UserCheck size={16} /> Siswa Kelas 5
+                    </button>
+                  </div>
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                    Username / NIS Login *
+                  </label>
+                  <input
+                    type="text"
+                    value={userFormUsername}
+                    onChange={(e) => setUserFormUsername(e.target.value)}
+                    placeholder={userFormRole === 'admin' ? 'Contoh: admin' : 'Masukkan NIS / Username Siswa...'}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                {/* Password / PIN */}
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                    Password / PIN Login *
+                  </label>
+                  <input
+                    type="text"
+                    value={userFormPassword}
+                    onChange={(e) => setUserFormPassword(e.target.value)}
+                    placeholder="Masukkan password / PIN..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-amber-500 font-mono"
+                  />
+                </div>
+
+                {/* Nama Lengkap */}
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                    Nama Lengkap Pemilik Akun *
+                  </label>
+                  <input
+                    type="text"
+                    value={userFormName}
+                    onChange={(e) => setUserFormName(e.target.value)}
+                    placeholder="Contoh: Pak Guru Agus / Ahmad Rafli..."
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-amber-500"
+                  />
+                </div>
+
+                {/* Linking Student if Role === 'student' */}
+                {userFormRole === 'student' && (
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                      Hubungkan dengan Siswa (Opsional)
+                    </label>
+                    <select
+                      value={userFormStudentId}
+                      onChange={(e) => {
+                        setUserFormStudentId(e.target.value);
+                        const sel = students.find(s => s.id === e.target.value);
+                        if (sel) {
+                          if (!userFormName) setUserFormName(sel.name);
+                          if (!userFormUsername) setUserFormUsername(sel.nis);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-sky-500"
+                    >
+                      <option value="">-- Pilih Siswa Kelas 5 --</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} (NIS: {s.nis})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div>
+                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
+                    Status Akun
+                  </label>
+                  <select
+                    value={userFormStatus}
+                    onChange={(e) => setUserFormStatus(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-amber-500"
+                  >
+                    <option value="active">Aktif (Dapat Login)</option>
+                    <option value="inactive">Nonaktif (Dikunci Sementara)</option>
+                  </select>
+                </div>
+
+                <div className="pt-3 flex gap-2">
                   <button
-                    onClick={() => {
-                      setShowConfirmResetPanel(false);
-                      setResetCodeInput('');
-                    }}
-                    className="py-1.5 bg-slate-100 border border-slate-350 text-slate-800 text-[10px] font-black rounded-lg cursor-pointer"
+                    type="button"
+                    onClick={() => setShowUserModal(false)}
+                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-900 rounded-2xl font-black text-xs cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
-                    onClick={handleExecuteWipeDatabase}
-                    className="py-1.5 bg-rose-600 font-black text-white text-[10px] rounded-lg border border-rose-950 cursor-pointer"
+                    type="submit"
+                    className="flex-1 py-3 bg-amber-400 hover:bg-amber-300 text-slate-900 border-2 border-slate-900 rounded-2xl font-black text-xs shadow-[3px_3px_0px_0px_#0284c7] cursor-pointer"
                   >
-                    Ya, Bersihkan!
+                    Simpan User
                   </button>
                 </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SECTION 2 & 3: IMPOR SISWA MASSAL / BACKUP DATABASE */}
+      {(activeSettingSection === 'IMPORT_STUDENTS' || activeSettingSection === 'BACKUP') && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* PANEL UTAMA: MASUKKAN DATA ANAK MASSAL (IMPORT) */}
+          <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#6366f1] lg:col-span-2 space-y-6 flex flex-col justify-between" id="bulk-import-card">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg inline-flex border border-indigo-200">
+                  <Users size={16} />
+                </span>
+                <h2 className="text-lg font-black text-slate-950">Impor Data Siswa Secara Massal</h2>
               </div>
-            )}
+              <p className="text-xs text-slate-500 font-medium">
+                Bapak/Ibu Guru tidak perlu memasukkan nama siswa satu per satu! Unggah file roster Excel kelas Anda atau tempel salinan data di sini.
+              </p>
+
+              {/* Tab Switcher */}
+              <div className="flex border-b border-slate-200 mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportMode('EXCEL');
+                    setIsParsed(false);
+                    setParsedPreviewList([]);
+                  }}
+                  className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    importMode === 'EXCEL'
+                      ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <FileSpreadsheet size={14} /> Unggah File Excel (.xlsx / .xls)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportMode('TEXT');
+                    setIsParsed(false);
+                    setParsedPreviewList([]);
+                  }}
+                  className={`py-2 px-4 text-xs font-black border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    importMode === 'TEXT'
+                      ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-xl'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Clipboard size={14} /> Tempel Teks Manual (CSV)
+                </button>
+              </div>
+
+              {importMode === 'EXCEL' ? (
+                <div className="space-y-4 mt-4 animate-fade-in">
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-xs text-slate-750 space-y-3">
+                    <p className="font-bold text-indigo-900 flex items-center gap-1.5">
+                      <Info size={14} className="stroke-[2.5]" /> Petunjuk Impor Excel:
+                    </p>
+                    <p className="leading-relaxed text-xs">
+                      Sistem akan mencocokkan kolom secara otomatis. Pastikan file Excel Anda minimal berisi kolom <strong>NIS</strong>, <strong>Nama Siswa</strong>, dan <strong>Kelas</strong> (5A atau 5B). Klik tombol di bawah ini untuk mengunduh template Excel siap pakai.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="px-4 py-2 bg-white hover:bg-slate-100 text-indigo-700 font-bold border border-indigo-300 rounded-lg shadow-sm transition-all text-[11px] cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Download size={12} className="stroke-[2.5]" /> Unduh Template Impor Excel (.xlsx)
+                    </button>
+                  </div>
+
+                  <div 
+                    onClick={() => studentExcelInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 hover:bg-indigo-50/30 p-8 rounded-2xl text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group shadow-sm"
+                  >
+                    <span className="p-3 bg-white text-indigo-600 rounded-full border border-slate-250 group-hover:scale-105 transition-transform shadow-inner">
+                      <FileSpreadsheet size={24} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800">Klik untuk memilih atau jatuhkan file Excel Anda</p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">Format dokumen yang didukung: .xlsx atau .xls</p>
+                    </div>
+                  </div>
+
+                  <input 
+                    type="file"
+                    ref={studentExcelInputRef}
+                    className="hidden"
+                    accept=".xlsx, .xls"
+                    onChange={handleExcelStudentImport}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4 mt-4 animate-fade-in">
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-slate-700 space-y-2">
+                    <p className="font-bold text-amber-900 flex items-center gap-1.5 leading-none">
+                      <Info size={14} className="stroke-[2.5]" /> Format Penulisan Teks:
+                    </p>
+                    <p className="font-mono bg-white p-2.5 rounded border border-amber-200 font-bold overflow-x-auto text-[11px]">
+                      Nama Siswa, Kelas, NIS, Nama Wali Murid, No Handphone, Saldo Awal (Opsional)
+                    </p>
+                    <div className="space-y-1 mt-2 pl-1 leading-normal text-slate-600 font-medium">
+                      <p>💡 <em>Contoh:</em> <code className="font-mono text-indigo-700 font-bold bg-white px-1 py-0.2 rounded">Andika Saputra, 5, 2026101, Herman, 081234, 50000</code></p>
+                      <p>💡 Gunakan tanda koma (,), titik koma (;), atau tombol tab sebagai pemisah antar kolom siswa Anda.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider block">
+                      Salin & Tempel Roster Kelas Di Sini
+                    </label>
+                    <textarea
+                      value={rawPasteText}
+                      onChange={(e) => {
+                        setRawPasteText(e.target.value);
+                        setIsParsed(false);
+                      }}
+                      rows={6}
+                      placeholder="Andi Wijaya, 5, 2026101, Herman, 08129999, 10000&#10;Siti Aminah, 5, 2026102, Bambang, 08138888, 5000"
+                      className="w-full bg-slate-50 p-4 border-2 border-slate-900 rounded-xl text-xs font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white tracking-wide transition-all shadow-[2px_2px_0px_0px_#000]"
+                      id="raw-import-students-textarea"
+                    />
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={handleParseText}
+                      className="px-5 py-3 bg-white hover:bg-amber-100 text-slate-900 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+                      id="parse-import-text-btn"
+                    >
+                      <RefreshCw size={14} className="stroke-[2.5]" /> Analisis Struktur Data Teks
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-4 pt-1">
+              {isParsed && parsedPreviewList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleExecuteImport}
+                  className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#047857] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#047857] active:shadow-none transition-all cursor-pointer flex items-center gap-1.5"
+                  id="execute-import-students-btn"
+                >
+                  <Check size={14} className="stroke-[3]" /> Simpan Hasil Impor ({parsedPreviewList.filter(p => p.isValid).length} Siswa Baru)
+                </button>
+              )}
+            </div>
           </div>
 
-        </div>
-      </div>
+          {/* PANEL SAMPING: CADANGAN & PEMILIHAN (BACKUP & RESTORE) */}
+          <div className="space-y-6 lg:col-span-1" id="backup-utilities-column">
+            
+            <div className="bg-white p-6 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#f59e0b] space-y-5" id="backup-menu-card">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg inline-flex border border-amber-200">
+                  <Database size={16} />
+                </span>
+                <h2 className="text-lg font-black text-slate-950">Cadangkan / Ekspor Data</h2>
+              </div>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Disarankan untuk mencadangkan data tabungan secara berkala. Seluruh pembukuan tabungan saat ini akan diunduh sebagai file backup Excel (.xlsx) tunggal yang dapat disimpan aman di komputer Anda.
+              </p>
 
-      {/* PRATINJAU TABEL PRATINJAU IMPOR (ONLY IF ANALYZED DATA EXISTS) */}
+              <div className="space-y-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleExportSystemBackup}
+                  className="w-full py-3.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
+                  id="btn-major-export-backup"
+                  title="Download data tabungan saat ini sebagai file Excel (.xlsx)"
+                >
+                  <Download size={15} className="stroke-[2.5]" /> Unduh File Cadangan (.XLSX)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-950 font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
+                  id="btn-major-import-restore"
+                  title="Muat data cadangan Excel untuk memulihkan tabungan"
+                >
+                  <Upload size={15} className="stroke-[2.5]" /> Pulihkan Cadangan dari Excel
+                </button>
+                
+                <input 
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".xlsx, .xls"
+                  onChange={handleRestoreSystemBackup}
+                />
+              </div>
+            </div>
+
+            {/* DANGER AREA: DELETE ALL DATA */}
+            <div className="bg-rose-50 p-6 rounded-2xl border-2 border-rose-900 shadow-[5px_5px_0px_0px_#e11d48] space-y-4" id="danger-wipe-card">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="p-1.5 bg-rose-100 text-rose-700 rounded-lg inline-flex border border-rose-200">
+                  <Trash2 size={16} />
+                </span>
+                <h2 className="text-lg font-black text-rose-950">Zona Bahaya (Risiko Tinggi)</h2>
+              </div>
+              <p className="text-xs text-rose-800 font-semibold leading-relaxed">
+                Tindakan ini akan menghapus <strong>SELURUH data siswa dan semua riwayat transaksinya</strong> secara permanen dari peranti ini. Pastikan Anda telah mengunduh file cadangan Anda!
+              </p>
+
+              {!showConfirmResetPanel ? (
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmResetPanel(true)}
+                  className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all cursor-pointer flex items-center justify-center gap-2"
+                  id="show-wipe-authorizer-panel"
+                >
+                  <Trash2 size={14} className="stroke-[2.5]" /> Hapus Seluruh Database
+                </button>
+              ) : (
+                <div className="bg-white p-4 border border-rose-250 rounded-xl space-y-3 animate-fade-in" id="confirm-reset-sub-panel">
+                  <p className="text-[10px] font-black text-rose-800 uppercase tracking-widest leading-none flex items-center gap-1">
+                    <AlertTriangle size={12} /> Ketik "RESET" Untuk Melanjutkan:
+                  </p>
+                  <input
+                    type="text"
+                    value={resetCodeInput}
+                    onChange={(e) => setResetCodeInput(e.target.value)}
+                    placeholder="Ketik RESET"
+                    className="w-full px-3 py-2 text-xs font-black uppercase text-center border-2 border-slate-900 rounded-lg bg-rose-50/55 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                    id="reset-state-safety-code"
+                  />
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConfirmResetPanel(false);
+                        setResetCodeInput('');
+                      }}
+                      className="py-1.5 bg-slate-100 border border-slate-350 text-slate-800 text-[10px] font-black rounded-lg cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExecuteWipeDatabase}
+                      className="py-1.5 bg-rose-600 font-black text-white text-[10px] rounded-lg border border-rose-950 cursor-pointer"
+                    >
+                      Ya, Bersihkan!
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* PRATINJAU TABEL PRATINJAU IMPOR (ONLY IF ANALYZED DATA EXISTS & IN IMPORT_STUDENTS SECTION) */}
       <AnimatePresence>
-        {isParsed && parsedPreviewList.length > 0 && (
+        {activeSettingSection === 'IMPORT_STUDENTS' && isParsed && parsedPreviewList.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
