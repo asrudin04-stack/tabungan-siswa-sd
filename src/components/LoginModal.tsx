@@ -25,14 +25,14 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
   const [activeTab, setActiveTab] = useState<'admin' | 'student'>('admin');
 
   // Admin form state
-  const [adminUsername, setAdminUsername] = useState('admin');
-  const [adminPassword, setAdminPassword] = useState('admin');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
 
   // Student form state
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [studentNisInput, setStudentNisInput] = useState<string>('');
-  const [studentPin, setStudentPin] = useState<string>('1234');
+  const [studentPin, setStudentPin] = useState<string>('');
   const [studentError, setStudentError] = useState('');
 
   // Handle Admin Login
@@ -238,14 +238,6 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
                 </div>
               </div>
 
-              {/* Demo Account Hint */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
-                <span className="font-semibold text-slate-700">Akun Login Pengujian:</span>
-                <span className="font-mono bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold border border-amber-300">
-                  admin / admin
-                </span>
-              </div>
-
               <button
                 type="submit"
                 className="w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-slate-900 border-2 border-slate-900 rounded-2xl font-black text-sm shadow-[4px_4px_0px_0px_#0284c7] active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 mt-2"
@@ -331,29 +323,6 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
                   className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-sky-500"
                 />
               </div>
-
-              {/* Quick Login Chips for Demo */}
-              {students.length > 0 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <p className="text-[11px] font-extrabold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                    <Sparkles size={12} className="text-amber-500" />
-                    Atau Klik Uji Coba Login Siswa:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {students.slice(0, 4).map((st) => (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => handleQuickStudentLogin(st)}
-                        className="px-2.5 py-1 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 rounded-lg text-xs font-bold transition-all text-left flex items-center gap-1.5"
-                      >
-                        <User size={12} className="text-sky-600" />
-                        <span>{st.name.split(' ')[0]} ({st.nis})</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <button
                 type="submit"
