@@ -48,24 +48,30 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
       return;
     }
 
-    // 1. Check registered admin accounts first
-    const matchedAccount = userAccounts.find(
-      u => u.role === 'admin' && 
-           u.username.toLowerCase() === inputUser.toLowerCase() && 
-           u.password === inputPass &&
-           u.status === 'active'
+    // 1. Check if there is an admin account matching the requested username
+    const matchedAdmin = userAccounts.find(
+      u => u.role === 'admin' && u.username.toLowerCase() === inputUser.toLowerCase()
     );
 
-    if (matchedAccount) {
+    if (matchedAdmin) {
+      if (matchedAdmin.status === 'inactive') {
+        setAdminError(`Akun Admin "${matchedAdmin.username}" sedang dinonaktifkan oleh pengelola.`);
+        return;
+      }
+      if (matchedAdmin.password !== inputPass) {
+        setAdminError('Password Admin tidak cocok. Silakan periksa kembali password Anda.');
+        return;
+      }
       onLoginSuccess({
         role: 'admin',
-        name: matchedAccount.name || matchedAccount.username
+        name: matchedAdmin.name || matchedAdmin.username
       });
       return;
     }
 
-    // 2. Default fallback for testing if user accounts list is empty or default
-    if (inputUser.toLowerCase() === 'admin' && (inputPass === 'admin' || inputPass === '123456' || inputPass === 'guru')) {
+    // 2. Fallback: If no registered admin account matches username and system has no registered admins
+    const hasRegisteredAdmins = userAccounts.some(u => u.role === 'admin');
+    if (!hasRegisteredAdmins && inputUser.toLowerCase() === 'admin' && (inputPass === 'admin' || inputPass === '123456' || inputPass === 'guru')) {
       onLoginSuccess({
         role: 'admin',
         name: 'Guru / Admin Pengelola'
@@ -73,20 +79,7 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
       return;
     }
 
-    // 3. Fallback for custom active admin user with matching username
-    const customAdminUser = userAccounts.find(u => u.role === 'admin' && u.username.toLowerCase() === inputUser.toLowerCase());
-    if (customAdminUser) {
-      if (customAdminUser.status === 'inactive') {
-        setAdminError('Akun admin ini sedang dinonaktifkan.');
-        return;
-      }
-      if (customAdminUser.password !== inputPass) {
-        setAdminError('Password admin salah.');
-        return;
-      }
-    }
-
-    setAdminError('Username atau Password Admin salah. Gunakan Username: "admin" & Password: "admin"');
+    setAdminError('Username atau Password Admin tidak terdaftar.');
   };
 
   // Handle Student Login
@@ -118,8 +111,8 @@ export default function LoginModal({ students, userAccounts, onLoginSuccess }: L
         setStudentError('Akun siswa ini sedang dinonaktifkan oleh Admin.');
         return;
       }
-      if (studentPin && studentAcc.password && studentAcc.password !== studentPin.trim()) {
-        setStudentError('PIN / Password siswa tidak cocok dengan data akun.');
+      if (studentAcc.password && studentPin.trim() !== studentAcc.password) {
+        setStudentError('PIN / Password siswa tidak cocok. Silakan periksa kembali PIN Anda.');
         return;
       }
     }
