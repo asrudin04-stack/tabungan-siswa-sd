@@ -1,12 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Enable full read and write access for students and transactions
-    match /students/{studentId} {
-      allow read, write: if true;
-    }
-    match /transactions/{transactionId} {
+    match /{document=**} {
       allow read, write: if true;
     }
   }
 }
+

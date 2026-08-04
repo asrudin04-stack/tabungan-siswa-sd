@@ -17,12 +17,28 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with specific database ID from config
-export const db = initializeFirestore(app, {}, firebaseConfig.firestoreDatabaseId || '(default)');
+// Initialize Firestore with ignoreUndefinedProperties setting
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+}, firebaseConfig.firestoreDatabaseId || '(default)');
 
 // Firestore Collection references
 export const studentsColRef = collection(db, 'students');
 export const transactionsColRef = collection(db, 'transactions');
+
+/**
+ * Sanitizes objects to remove undefined properties before saving to Firestore
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const clean: Record<string, any> = {};
+  Object.keys(obj).forEach((key) => {
+    const val = obj[key];
+    if (val !== undefined) {
+      clean[key] = val;
+    }
+  });
+  return clean;
+}
 
 /**
  * Saves a single student to Firestore
@@ -30,9 +46,10 @@ export const transactionsColRef = collection(db, 'transactions');
 export async function saveStudentToCloud(student: Student) {
   try {
     const studentDocRef = doc(db, 'students', student.id);
-    await setDoc(studentDocRef, student);
+    await setDoc(studentDocRef, sanitizeForFirestore(student));
   } catch (error) {
     console.error('Error saving student to cloud:', error);
+    throw error;
   }
 }
 
@@ -41,25 +58,29 @@ export async function saveStudentToCloud(student: Student) {
  */
 export async function deleteStudentFromCloud(studentId: string) {
   try {
-    const batch = writeBatch(db);
-    
-    // Delete the student document
     const studentDocRef = doc(db, 'students', studentId);
-    batch.delete(studentDocRef);
 
-    // Fetch and delete all transactions associated with this student
+    // Fetch and collect all transactions associated with this student
     const q = query(transactionsColRef);
     const querySnapshot = await getDocs(q);
-    querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data() as Transaction;
-      if (data.studentId === studentId) {
-        batch.delete(docSnap.ref);
-      }
-    });
+    
+    const refsToDelete = [
+      studentDocRef,
+      ...querySnapshot.docs
+        .filter((docSnap) => (docSnap.data() as Transaction).studentId === studentId)
+        .map((docSnap) => docSnap.ref)
+    ];
 
-    await batch.commit();
+    // Batch delete in chunks of 400 (Firestore max batch is 500)
+    for (let i = 0; i < refsToDelete.length; i += 400) {
+      const chunk = refsToDelete.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
   } catch (error) {
     console.error('Error deleting student from cloud:', error);
+    throw error;
   }
 }
 
@@ -69,20 +90,19 @@ export async function deleteStudentFromCloud(studentId: string) {
 export async function saveTransactionToCloud(transaction: Transaction) {
   try {
     const transactionDocRef = doc(db, 'transactions', transaction.id);
-    await setDoc(transactionDocRef, transaction);
+    await setDoc(transactionDocRef, sanitizeForFirestore(transaction));
   } catch (error) {
     console.error('Error saving transaction to cloud:', error);
+    throw error;
   }
 }
 
 /**
  * Performs a batch upload of multiple students and transactions
- * This is useful for first-time seed migrations or restoration from JSON backup
+ * Useful for first-time seed migrations or restoration from JSON/Excel backup
  */
 export async function uploadBulkToCloud(students: Student[], transactions: Transaction[]) {
   try {
-    // Firestore allows up to 500 writes per batch. 
-    // We will partition the bulk inserts if necessary, or execute them in parallel batches.
     const batchSize = 400;
     
     // Upload students in chunks
@@ -91,7 +111,7 @@ export async function uploadBulkToCloud(students: Student[], transactions: Trans
       const batch = writeBatch(db);
       chunk.forEach((student) => {
         const docRef = doc(db, 'students', student.id);
-        batch.set(docRef, student);
+        batch.set(docRef, sanitizeForFirestore(student));
       });
       await batch.commit();
     }
@@ -102,7 +122,7 @@ export async function uploadBulkToCloud(students: Student[], transactions: Trans
       const batch = writeBatch(db);
       chunk.forEach((tx) => {
         const docRef = doc(db, 'transactions', tx.id);
-        batch.set(docRef, tx);
+        batch.set(docRef, sanitizeForFirestore(tx));
       });
       await batch.commit();
     }
@@ -114,25 +134,29 @@ export async function uploadBulkToCloud(students: Student[], transactions: Trans
 
 /**
  * Deletes all documents in both collections
- * This acts as our secure Wipe / Clear Database utility
+ * Acts as secure Wipe / Clear Database utility
  */
 export async function clearAllCloudDatabase() {
   try {
-    // Deleting students
+    // Delete students in chunks
     const studentsSnapshot = await getDocs(studentsColRef);
-    const studentsBatch = writeBatch(db);
-    studentsSnapshot.forEach((docSnap) => {
-      studentsBatch.delete(docSnap.ref);
-    });
-    await studentsBatch.commit();
+    const studentDocs = studentsSnapshot.docs;
+    for (let i = 0; i < studentDocs.length; i += 400) {
+      const chunk = studentDocs.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+    }
 
-    // Deleting transactions
+    // Delete transactions in chunks
     const transactionsSnapshot = await getDocs(transactionsColRef);
-    const transactionsBatch = writeBatch(db);
-    transactionsSnapshot.forEach((docSnap) => {
-      transactionsBatch.delete(docSnap.ref);
-    });
-    await transactionsBatch.commit();
+    const txDocs = transactionsSnapshot.docs;
+    for (let i = 0; i < txDocs.length; i += 400) {
+      const chunk = txDocs.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach((docSnap) => batch.delete(docSnap.ref));
+      await batch.commit();
+    }
   } catch (error) {
     console.error('Error clearing database from cloud:', error);
     throw error;
