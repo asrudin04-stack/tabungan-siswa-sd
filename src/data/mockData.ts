@@ -1,4 +1,4 @@
-import { Student, Transaction, UserAccount } from '../types';
+import { Student, Transaction, UserAccount, StudentFee } from '../types';
 
 export const INITIAL_STUDENTS: Student[] = [
   {
@@ -458,3 +458,557 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     recordedBy: 'Bu Guru Risma'
   }
 ];
+
+export const INITIAL_STUDENT_FEES: StudentFee[] = [
+  // 1. Iuran LKS Semester Ganjil (Kelas 5) - Target Rp 65.000
+  {
+    id: 'fee-lks-s1',
+    studentId: 's-1',
+    studentName: 'Ahmad Rafli Hidayat',
+    studentNis: '202601001',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-20T09:30:00.000Z',
+    notes: 'Lunas saat pembagian buku',
+    payments: [
+      {
+        id: 'pay-lks-1',
+        feeId: 'fee-lks-s1',
+        studentId: 's-1',
+        amount: 65000,
+        date: '2026-07-20T09:30:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-001'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s2',
+    studentId: 's-2',
+    studentName: 'Siti Aminah Azzahra',
+    studentNis: '202601002',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-18T10:00:00.000Z',
+    notes: 'Lunas transfer wali murid',
+    payments: [
+      {
+        id: 'pay-lks-2',
+        feeId: 'fee-lks-s2',
+        studentId: 's-2',
+        amount: 65000,
+        date: '2026-07-18T10:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-002'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s3',
+    studentId: 's-3',
+    studentName: 'Rian Pratama Wijaya',
+    studentNis: '202602001',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 35000,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-22T08:45:00.000Z',
+    notes: 'Kurang Rp 30.000 (Cicilan 1)',
+    payments: [
+      {
+        id: 'pay-lks-3',
+        feeId: 'fee-lks-s3',
+        studentId: 's-3',
+        amount: 35000,
+        date: '2026-07-22T08:45:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-LKS-2026-003'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s4',
+    studentId: 's-4',
+    studentName: 'Lani Rahmawati Putri',
+    studentNis: '202601003',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-19T09:15:00.000Z',
+    notes: 'Lunas potong tabungan siswa',
+    payments: [
+      {
+        id: 'pay-lks-4',
+        feeId: 'fee-lks-s4',
+        studentId: 's-4',
+        amount: 65000,
+        date: '2026-07-19T09:15:00.000Z',
+        method: 'POTONG_TABUNGAN',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-004'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s5',
+    studentId: 's-5',
+    studentName: 'Budi Hartono',
+    studentNis: '202603001',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 0,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-15T08:00:00.000Z',
+    notes: 'Belum bayar sama sekali',
+    payments: []
+  },
+  {
+    id: 'fee-lks-s6',
+    studentId: 's-6',
+    studentName: 'Dewi Lestari',
+    studentNis: '202602002',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-21T08:00:00.000Z',
+    notes: 'Lunas',
+    payments: [
+      {
+        id: 'pay-lks-6',
+        feeId: 'fee-lks-s6',
+        studentId: 's-6',
+        amount: 65000,
+        date: '2026-07-21T08:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-005'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s7',
+    studentId: 's-7',
+    studentName: 'Faza Al-Ghifari',
+    studentNis: '202603002',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 50000,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-25T10:15:00.000Z',
+    notes: 'Kurang Rp 15.000',
+    payments: [
+      {
+        id: 'pay-lks-7',
+        feeId: 'fee-lks-s7',
+        studentId: 's-7',
+        amount: 50000,
+        date: '2026-07-25T10:15:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-LKS-2026-006'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s8',
+    studentId: 's-8',
+    studentName: 'Nabila Nur Safitri',
+    studentNis: '202601004',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-17T09:00:00.000Z',
+    notes: 'Lunas tunai',
+    payments: [
+      {
+        id: 'pay-lks-8',
+        feeId: 'fee-lks-s8',
+        studentId: 's-8',
+        amount: 65000,
+        date: '2026-07-17T09:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-007'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s9',
+    studentId: 's-9',
+    studentName: 'Zhafran Khairy',
+    studentNis: '202603003',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-16T08:30:00.000Z',
+    notes: 'Lunas',
+    payments: [
+      {
+        id: 'pay-lks-9',
+        feeId: 'fee-lks-s9',
+        studentId: 's-9',
+        amount: 65000,
+        date: '2026-07-16T08:30:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-LKS-2026-008'
+      }
+    ]
+  },
+  {
+    id: 'fee-lks-s10',
+    studentId: 's-10',
+    studentName: 'Keisha Aurelia',
+    studentNis: '202602003',
+    studentGrade: '5',
+    feeType: 'LKS',
+    title: 'Paket LKS Semester Ganjil (Tema 1-5 & Agama)',
+    categoryName: 'Buku LKS',
+    period: 'Semester 1 2026/2027',
+    targetAmount: 65000,
+    paidAmount: 65000,
+    status: 'LUNAS',
+    createdAt: '2026-07-15T08:00:00.000Z',
+    updatedAt: '2026-07-20T10:00:00.000Z',
+    notes: 'Lunas tunai',
+    payments: [
+      {
+        id: 'pay-lks-10',
+        feeId: 'fee-lks-s10',
+        studentId: 's-10',
+        amount: 65000,
+        date: '2026-07-20T10:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-LKS-2026-009'
+      }
+    ]
+  },
+
+  // 2. Iuran Kegiatan Pramuka & Kemah Persami - Target Rp 25.000
+  {
+    id: 'fee-pra-s1',
+    studentId: 's-1',
+    studentName: 'Ahmad Rafli Hidayat',
+    studentNis: '202601001',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-05T09:00:00.000Z',
+    notes: 'Lunas tunai',
+    payments: [
+      {
+        id: 'pay-pra-1',
+        feeId: 'fee-pra-s1',
+        studentId: 's-1',
+        amount: 25000,
+        date: '2026-08-05T09:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-PRA-2026-001'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s2',
+    studentId: 's-2',
+    studentName: 'Siti Aminah Azzahra',
+    studentNis: '202601002',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-08T08:30:00.000Z',
+    notes: 'Lunas',
+    payments: [
+      {
+        id: 'pay-pra-2',
+        feeId: 'fee-pra-s2',
+        studentId: 's-2',
+        amount: 25000,
+        date: '2026-08-08T08:30:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-PRA-2026-002'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s3',
+    studentId: 's-3',
+    studentName: 'Rian Pratama Wijaya',
+    studentNis: '202602001',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 0,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-01T08:00:00.000Z',
+    notes: 'Belum bayar',
+    payments: []
+  },
+  {
+    id: 'fee-pra-s4',
+    studentId: 's-4',
+    studentName: 'Lani Rahmawati Putri',
+    studentNis: '202601003',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-10T09:10:00.000Z',
+    notes: 'Lunas potong tabungan',
+    payments: [
+      {
+        id: 'pay-pra-4',
+        feeId: 'fee-pra-s4',
+        studentId: 's-4',
+        amount: 25000,
+        date: '2026-08-10T09:10:00.000Z',
+        method: 'POTONG_TABUNGAN',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-PRA-2026-003'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s5',
+    studentId: 's-5',
+    studentName: 'Budi Hartono',
+    studentNis: '202603001',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 15000,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-12T08:15:00.000Z',
+    notes: 'Kurang Rp 10.000',
+    payments: [
+      {
+        id: 'pay-pra-5',
+        feeId: 'fee-pra-s5',
+        studentId: 's-5',
+        amount: 15000,
+        date: '2026-08-12T08:15:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-PRA-2026-004'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s6',
+    studentId: 's-6',
+    studentName: 'Dewi Lestari',
+    studentNis: '202602002',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-14T09:40:00.000Z',
+    notes: 'Lunas',
+    payments: [
+      {
+        id: 'pay-pra-6',
+        feeId: 'fee-pra-s6',
+        studentId: 's-6',
+        amount: 25000,
+        date: '2026-08-14T09:40:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-PRA-2026-005'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s7',
+    studentId: 's-7',
+    studentName: 'Faza Al-Ghifari',
+    studentNis: '202603002',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-15T08:20:00.000Z',
+    notes: 'Lunas tunai',
+    payments: [
+      {
+        id: 'pay-pra-7',
+        feeId: 'fee-pra-s7',
+        studentId: 's-7',
+        amount: 25000,
+        date: '2026-08-15T08:20:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Pak Guru Agus',
+        receiptNo: 'KW-PRA-2026-006'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s8',
+    studentId: 's-8',
+    studentName: 'Nabila Nur Safitri',
+    studentNis: '202601004',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-16T10:00:00.000Z',
+    notes: 'Lunas',
+    payments: [
+      {
+        id: 'pay-pra-8',
+        feeId: 'fee-pra-s8',
+        studentId: 's-8',
+        amount: 25000,
+        date: '2026-08-16T10:00:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-PRA-2026-007'
+      }
+    ]
+  },
+  {
+    id: 'fee-pra-s9',
+    studentId: 's-9',
+    studentName: 'Zhafran Khairy',
+    studentNis: '202603003',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 0,
+    status: 'BELUM_LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-01T08:00:00.000Z',
+    notes: 'Belum bayar',
+    payments: []
+  },
+  {
+    id: 'fee-pra-s10',
+    studentId: 's-10',
+    studentName: 'Keisha Aurelia',
+    studentNis: '202602003',
+    studentGrade: '5',
+    feeType: 'PRAMUKA',
+    title: 'Iuran Kegiatan Pramuka & Kemah Persami',
+    categoryName: 'Kepramukaan',
+    period: 'Agustus 2026',
+    targetAmount: 25000,
+    paidAmount: 25000,
+    status: 'LUNAS',
+    createdAt: '2026-08-01T08:00:00.000Z',
+    updatedAt: '2026-08-18T09:30:00.000Z',
+    notes: 'Lunas tunai',
+    payments: [
+      {
+        id: 'pay-pra-10',
+        feeId: 'fee-pra-s10',
+        studentId: 's-10',
+        amount: 25000,
+        date: '2026-08-18T09:30:00.000Z',
+        method: 'TUNAI',
+        recordedBy: 'Bu Guru Risma',
+        receiptNo: 'KW-PRA-2026-008'
+      }
+    ]
+  }
+];
+

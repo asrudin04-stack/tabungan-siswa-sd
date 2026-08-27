@@ -11,7 +11,7 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-import { Student, Transaction, UserAccount } from './types';
+import { Student, Transaction, UserAccount, StudentFee } from './types';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase App
@@ -26,6 +26,7 @@ export const db = initializeFirestore(app, {
 export const studentsColRef = collection(db, 'students');
 export const transactionsColRef = collection(db, 'transactions');
 export const usersColRef = collection(db, 'userAccounts');
+export const studentFeesColRef = collection(db, 'studentFees');
 
 /**
  * Sanitizes objects to remove undefined properties before saving to Firestore
@@ -220,6 +221,53 @@ export async function uploadBulkUsersToCloud(users: UserAccount[]) {
     }
   } catch (error) {
     console.error('Error uploading bulk user accounts to cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Saves a single student fee to Firestore
+ */
+export async function saveStudentFeeToCloud(fee: StudentFee) {
+  try {
+    const feeDocRef = doc(db, 'studentFees', fee.id);
+    await setDoc(feeDocRef, sanitizeForFirestore(fee));
+  } catch (error) {
+    console.error('Error saving student fee to cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Deletes a single student fee from Firestore
+ */
+export async function deleteStudentFeeFromCloud(feeId: string) {
+  try {
+    const feeDocRef = doc(db, 'studentFees', feeId);
+    await deleteDoc(feeDocRef);
+  } catch (error) {
+    console.error('Error deleting student fee from cloud:', error);
+    throw error;
+  }
+}
+
+/**
+ * Performs a batch upload of student fees
+ */
+export async function uploadBulkFeesToCloud(fees: StudentFee[]) {
+  try {
+    const batchSize = 400;
+    for (let i = 0; i < fees.length; i += batchSize) {
+      const chunk = fees.slice(i, i + batchSize);
+      const batch = writeBatch(db);
+      chunk.forEach((fee) => {
+        const docRef = doc(db, 'studentFees', fee.id);
+        batch.set(docRef, sanitizeForFirestore(fee));
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    console.error('Error uploading bulk student fees to cloud:', error);
     throw error;
   }
 }

@@ -16,9 +16,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
-  Scale
+  Scale,
+  BookOpen,
+  Award,
+  Receipt,
+  ArrowRight,
+  CloudCheck,
+  Cloud
 } from 'lucide-react';
-import { Student, Transaction, GradeClass } from '../types';
+import { Student, Transaction, GradeClass, StudentFee } from '../types';
 import { formatCurrency, getClassBadgeStyle, getIndonesianMonthYear } from '../utils';
 import { 
   AreaChart, 
@@ -39,6 +45,10 @@ import {
 interface DashboardProps {
   students: Student[];
   transactions: Transaction[];
+  fees?: StudentFee[];
+  syncStatus?: 'synced' | 'saving' | 'error';
+  lastSyncTime?: Date | null;
+  onSyncNow?: () => void;
   onViewStudent: (student: Student) => void;
   onNavigateToTab: (tab: string) => void;
   onReconcileBalances?: () => void;
@@ -47,10 +57,27 @@ interface DashboardProps {
 export default function Dashboard({ 
   students, 
   transactions, 
+  fees = [],
+  syncStatus = 'synced',
+  lastSyncTime,
+  onSyncNow,
   onViewStudent, 
   onNavigateToTab,
   onReconcileBalances 
 }: DashboardProps) {
+  // Manual sync loading state
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    if (onSyncNow) {
+      setIsSyncing(true);
+      try {
+        await onSyncNow();
+      } finally {
+        setTimeout(() => setIsSyncing(false), 600);
+      }
+    }
+  };
   // Available Month-Year filters from transactions
   const monthFilters = useMemo(() => {
     const months = new Set<string>();
@@ -96,16 +123,29 @@ export default function Dashboard({
     // 2. Selected period calculations
     let deposits = 0;
     let withdrawals = 0;
+    let priorDeposits = 0;
+    let priorWithdrawals = 0;
     
-    filteredTransactions.forEach(t => {
-      if (t.type === 'SETOR') {
-        deposits += t.amount;
-      } else if (t.type === 'TARIK') {
-        withdrawals += t.amount;
-      }
-    });
+    if (selectedMonth === 'ALL') {
+      deposits = allTimeDeposits;
+      withdrawals = allTimeWithdrawals;
+    } else {
+      transactions.forEach(t => {
+        const tDate = t.date || '';
+        const tMonth = tDate.substring(0, 7);
+        if (tMonth < selectedMonth) {
+          if (t.type === 'SETOR') priorDeposits += t.amount;
+          else if (t.type === 'TARIK') priorWithdrawals += t.amount;
+        } else if (tMonth === selectedMonth) {
+          if (t.type === 'SETOR') deposits += t.amount;
+          else if (t.type === 'TARIK') withdrawals += t.amount;
+        }
+      });
+    }
 
+    const startingBalance = priorDeposits - priorWithdrawals;
     const netPeriodAmount = deposits - withdrawals;
+    const periodEndingBalance = selectedMonth === 'ALL' ? allTimeNetLedger : (startingBalance + netPeriodAmount);
 
     // Discrepancy check between student balances sum and total ledger transactions
     const discrepancy = Math.abs(schoolTotalSavings - allTimeNetLedger);
@@ -119,15 +159,55 @@ export default function Dashboard({
       allTimeDeposits,
       allTimeWithdrawals,
       allTimeNetLedger,
+      startingBalance,
       deposits,
       withdrawals,
       netTransactionAmount: netPeriodAmount,
+      periodEndingBalance,
       discrepancy,
       isBalanced,
       activeSaverCount,
       totalStudentsCount: students.length
     };
-  }, [students, transactions, filteredTransactions]);
+  }, [students, transactions, selectedMonth]);
+
+  // Fee (Iuran) Overview statistics
+  const feeOverview = useMemo(() => {
+    let totalTarget = 0;
+    let totalPaid = 0;
+    let lunasCount = 0;
+    let belumLunasCount = 0;
+
+    fees.forEach(f => {
+      totalTarget += f.targetAmount;
+      totalPaid += f.paidAmount;
+      if (f.status === 'LUNAS') {
+        lunasCount++;
+      } else {
+        belumLunasCount++;
+      }
+    });
+
+    const lksFees = fees.filter(f => f.feeType === 'LKS');
+    const lksLunas = lksFees.filter(f => f.status === 'LUNAS').length;
+    const praFees = fees.filter(f => f.feeType === 'PRAMUKA');
+    const praLunas = praFees.filter(f => f.status === 'LUNAS').length;
+    const percentPaid = totalTarget > 0 ? Math.round((totalPaid / totalTarget) * 100) : 0;
+
+    return {
+      totalTarget,
+      totalPaid,
+      totalUnpaid: Math.max(0, totalTarget - totalPaid),
+      lunasCount,
+      belumLunasCount,
+      percentPaid,
+      totalCount: fees.length,
+      lksLunas,
+      lksTotal: lksFees.length,
+      praLunas,
+      praTotal: praFees.length
+    };
+  }, [fees]);
 
   // Class statistics (Kelas 5)
   const classSavingsInfo = useMemo(() => {
@@ -330,25 +410,58 @@ export default function Dashboard({
           </p>
         </div>
 
-        {/* Dynamic Month Filter */}
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] w-fit">
-          <span className="p-1 text-indigo-600 ml-1.5 animate-bounce-gentle">
-            <Calendar size={16} />
-          </span>
-          <select 
-            id="month-filter-dropdown"
-            value={selectedMonth} 
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-transparent text-sm font-black text-slate-800 focus:outline-none pr-3 py-1 cursor-pointer"
+        {/* Controls: Tombol Sinkronisasi Cloud + Month Filter */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          
+          {/* Tombol Sinkronisasi Cloud */}
+          <button
+            id="btn-sync-cloud"
+            onClick={handleManualSync}
+            disabled={isSyncing || syncStatus === 'saving'}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] flex items-center gap-2 cursor-pointer transition-all hover:translate-y-[-1px] ${
+              syncStatus === 'error'
+                ? 'bg-rose-100 text-rose-900 hover:bg-rose-200'
+                : isSyncing || syncStatus === 'saving'
+                ? 'bg-amber-100 text-amber-900 cursor-wait'
+                : 'bg-white hover:bg-emerald-50 text-slate-900'
+            }`}
+            title="Klik untuk menyinkronkan data lokal dengan Firebase Cloud Firestore"
           >
-            <option value="ALL">Semua Periode</option>
-            {monthFilters.map(my => (
-              <option key={my} value={my}>
-                {getIndonesianMonthYear(my)}
-              </option>
-            ))}
-          </select>
+            <RefreshCw 
+              size={14} 
+              className={`${isSyncing || syncStatus === 'saving' ? 'animate-spin text-amber-600' : 'text-emerald-600'}`} 
+            />
+            <span>
+              {isSyncing || syncStatus === 'saving' 
+                ? 'Sinkronisasi...' 
+                : syncStatus === 'error' 
+                ? 'Sinkron Ulang' 
+                : 'Sinkronkan Data'}
+            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+          </button>
+
+          {/* Dynamic Month Filter */}
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_#0f172a] w-fit">
+            <span className="p-1 text-indigo-600 ml-1.5 animate-bounce-gentle">
+              <Calendar size={16} />
+            </span>
+            <select 
+              id="month-filter-dropdown"
+              value={selectedMonth} 
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent text-sm font-black text-slate-800 focus:outline-none pr-3 py-1 cursor-pointer"
+            >
+              <option value="ALL">Semua Periode</option>
+              {monthFilters.map(my => (
+                <option key={my} value={my}>
+                  {getIndonesianMonthYear(my)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
+
       </div>
 
       {/* Grid Statis / Bento Grid */}
@@ -523,19 +636,43 @@ export default function Dashboard({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-black text-slate-900">
-                  {stats.isBalanced ? '✅ Status Pembukuan Kas: 100% Seimbang & Klop' : '⚠️ Perlu Penyesuaian Saldo'}
+                  {stats.isBalanced ? '✅ Status Pembukuan Kas: 100% Seimbang & Klop' : '⚠️ Perlu Penyesuaian Saldo Siswa'}
                 </h3>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
                   stats.isBalanced 
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
                     : 'bg-amber-100 text-amber-900 border-amber-300'
                 }`}>
-                  Selisih: {formatCurrency(stats.discrepancy)}
+                  {stats.isBalanced ? 'Saldo Klop' : `Selisih: ${formatCurrency(stats.discrepancy)}`}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
-                <span className="font-bold text-slate-800">Rumus Neraca:</span> Total Seluruh Setoran ({formatCurrency(stats.allTimeDeposits)}) - Total Seluruh Penarikan ({formatCurrency(stats.allTimeWithdrawals)}) = Saldo Kas Sekolah ({formatCurrency(stats.schoolTotalSavings)}).
-              </p>
+              
+              {/* Formula Matematika Neraca Transparan */}
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-700 flex-wrap font-medium">
+                {selectedMonth !== 'ALL' ? (
+                  <>
+                    <span className="bg-white/80 px-2 py-0.5 rounded border border-slate-300 font-mono text-[11px]">
+                      Awal: <b>{formatCurrency(stats.startingBalance)}</b>
+                    </span>
+                    <span className="font-bold text-slate-500">+</span>
+                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-mono text-[11px]">
+                      Setor: <b>+{formatCurrency(stats.deposits)}</b>
+                    </span>
+                    <span className="font-bold text-slate-500">-</span>
+                    <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded border border-rose-300 font-mono text-[11px]">
+                      Tarik: <b>-{formatCurrency(stats.withdrawals)}</b>
+                    </span>
+                    <span className="font-bold text-slate-500">=</span>
+                    <span className="bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded border border-indigo-300 font-mono text-[11px] font-bold">
+                      Saldo Akhir {getIndonesianMonthYear(selectedMonth).split(' ')[0]}: <b>{formatCurrency(stats.periodEndingBalance)}</b>
+                    </span>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-600 font-medium">
+                    <span className="font-bold text-slate-800">Rumus Neraca:</span> Total Seluruh Setoran ({formatCurrency(stats.allTimeDeposits)}) - Total Seluruh Penarikan ({formatCurrency(stats.allTimeWithdrawals)}) = Saldo Kas Sekolah ({formatCurrency(stats.schoolTotalSavings)}).
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -545,11 +682,57 @@ export default function Dashboard({
               className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:translate-y-[-1px] transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               title="Sinkronkan ulang saldo semua siswa berdasarkan seluruh riwayat mutasi transaksi"
             >
-              <RefreshCw size={13} className="text-yellow-400" /> Sinkronkan Saldo
+              <RefreshCw size={13} className="text-yellow-400" /> Sinkronkan & Audit Saldo
             </button>
           )}
         </div>
       </div>
+
+      {/* Banner Status Iuran LKS & Pramuka (Quick Overview & Shortcut) */}
+      <div 
+        className="bg-white p-5 rounded-2xl border-2 border-slate-900 shadow-[5px_5px_0px_0px_#6366f1] flex flex-col md:flex-row md:items-center justify-between gap-4"
+        id="fee-summary-banner"
+      >
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="p-3 bg-indigo-600 text-white rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] shrink-0">
+            <Receipt size={22} className="stroke-[2.5]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-black text-slate-900">
+                📘 Status Iuran Buku LKS & Pramuka
+              </h3>
+              <span className="text-[10px] font-black bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full border border-indigo-250">
+                {feeOverview.percentPaid}% Terbayar
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-600 font-semibold mt-1 flex-wrap">
+              <span className="flex items-center gap-1">
+                <BookOpen size={13} className="text-indigo-600" />
+                <span>LKS: <b className="text-emerald-700">{feeOverview.lksLunas}/{feeOverview.lksTotal} Lunas</b></span>
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <Award size={13} className="text-amber-600" />
+                <span>Pramuka: <b className="text-emerald-700">{feeOverview.praLunas}/{feeOverview.praTotal} Lunas</b></span>
+              </span>
+              <span>•</span>
+              <span className="text-rose-600 font-bold">
+                Tunggakan: {formatCurrency(feeOverview.totalUnpaid)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigateToTab('iuran')}
+          className="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-slate-950 text-xs font-black rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#0f172a] hover:translate-y-[-1px] transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+        >
+          <span>Kelola Iuran & Pelunasan</span>
+          <ArrowRight size={14} />
+        </button>
+      </div>
+
 
       {/* Grid Grafik Utama */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="dashboard-charts-grid">

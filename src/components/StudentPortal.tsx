@@ -19,16 +19,20 @@ import {
   CheckCircle2,
   Clock,
   ShieldAlert,
-  Award
+  Award,
+  BookOpen,
+  Receipt,
+  AlertCircle
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Student, Transaction, AuthUser } from '../types';
+import { Student, Transaction, AuthUser, StudentFee } from '../types';
 import { formatCurrency, formatDate, getIndonesianMonthYear } from '../utils';
 
 interface StudentPortalProps {
   currentUser: AuthUser;
   students: Student[];
   transactions: Transaction[];
+  fees?: StudentFee[];
   onLogout: () => void;
 }
 
@@ -36,6 +40,7 @@ export default function StudentPortal({
   currentUser,
   students,
   transactions,
+  fees = [],
   onLogout
 }: StudentPortalProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +57,12 @@ export default function StudentPortal({
     }
     return students.find(s => s.name.toLowerCase() === currentUser.name.toLowerCase());
   }, [currentUser, students]);
+
+  // Personal fees for logged-in student
+  const personalFees = useMemo(() => {
+    if (!currentStudent) return [];
+    return fees.filter(f => f.studentId === currentStudent.id);
+  }, [currentStudent, fees]);
 
   // Personal transactions list
   const personalTransactions = useMemo(() => {
@@ -299,6 +310,84 @@ export default function StudentPortal({
             <p className="text-xs text-slate-500 font-bold mt-1">Dicatat oleh Kasir Guru</p>
           </div>
         </div>
+
+        {/* Status Iuran Siswa (Buku LKS & Pramuka) */}
+        {personalFees.length > 0 && (
+          <div className="bg-white p-6 rounded-2xl border-3 border-slate-900 shadow-[5px_5px_0px_0px_#f59e0b] space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-amber-100 text-amber-900 rounded-xl border border-amber-300">
+                  <Receipt size={20} className="stroke-[2.5]" />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    📘 Status Pelunasan Iuran Buku LKS & Pramuka Anda
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Pantau tagihan dan konfirmasi status pelunasan resmi dari sekolah.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {personalFees.map((fee) => {
+                const isLunas = fee.status === 'LUNAS';
+                const remaining = Math.max(0, fee.targetAmount - fee.paidAmount);
+                return (
+                  <div
+                    key={fee.id}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      isLunas
+                        ? 'bg-emerald-50/60 border-emerald-500 shadow-[3px_3px_0px_0px_#10b981]'
+                        : 'bg-rose-50/60 border-rose-500 shadow-[3px_3px_0px_0px_#f43f5e]'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                        fee.feeType === 'LKS'
+                          ? 'bg-indigo-100 text-indigo-900 border-indigo-300'
+                          : 'bg-amber-100 text-amber-900 border-amber-300'
+                      }`}>
+                        {fee.feeType === 'LKS' ? '📘 Iuran LKS' : '🏕️ Pramuka'}
+                      </span>
+                      {isLunas ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-sm">
+                          <CheckCircle2 size={11} className="stroke-[3]" /> SUDAH LUNAS
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-rose-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                          <AlertCircle size={11} className="stroke-[3]" /> BELUM LUNAS
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-black text-sm text-slate-900 mt-2">{fee.title}</h4>
+                    {fee.period && (
+                      <p className="text-[11px] text-slate-500 font-medium">{fee.period}</p>
+                    )}
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-slate-500">Target: </span>
+                        <span className="font-black font-mono text-slate-800">{formatCurrency(fee.targetAmount)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Terbayar: </span>
+                        <span className="font-black font-mono text-emerald-700">{formatCurrency(fee.paidAmount)}</span>
+                      </div>
+                      {!isLunas && (
+                        <div>
+                          <span className="text-rose-600 font-bold font-mono">Sisa: -{formatCurrency(remaining)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recharts Chart: Grafik Tren Setoran Pribadi */}
         <div className="bg-white p-6 rounded-2xl border-3 border-slate-900 shadow-[5px_5px_0px_0px_#0284c7] space-y-4">

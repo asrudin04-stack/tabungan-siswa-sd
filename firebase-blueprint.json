@@ -32,6 +32,28 @@
         },
         "required": ["id", "studentId", "studentName", "studentGrade", "type", "amount", "date", "recordedBy"]
       }
+    },
+    "studentFees": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "studentId": { "type": "string" },
+          "studentName": { "type": "string" },
+          "studentNis": { "type": "string" },
+          "studentGrade": { "type": "string" },
+          "feeType": { "type": "string" },
+          "title": { "type": "string" },
+          "period": { "type": "string" },
+          "targetAmount": { "type": "number" },
+          "paidAmount": { "type": "number" },
+          "status": { "type": "string" },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "studentId", "studentName", "studentGrade", "feeType", "title", "targetAmount", "paidAmount", "status"]
+      }
     }
   }
 }
+

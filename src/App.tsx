@@ -13,10 +13,16 @@ import {
   Sliders,
   Cloud,
   CloudLightning,
-  CloudOff
+  CloudOff,
+  Receipt,
+  RefreshCw,
+  BookOpen,
+  Award,
+  CheckCircle2,
+  Check
 } from 'lucide-react';
-import { Student, Transaction, AuthUser, UserAccount } from './types';
-import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS, INITIAL_USER_ACCOUNTS } from './data/mockData';
+import { Student, Transaction, AuthUser, UserAccount, StudentFee, FeePayment } from './types';
+import { INITIAL_STUDENTS, INITIAL_TRANSACTIONS, INITIAL_USER_ACCOUNTS, INITIAL_STUDENT_FEES } from './data/mockData';
 import { formatDate } from './utils';
 
 // Import Firebase references
@@ -26,6 +32,7 @@ import {
   studentsColRef, 
   transactionsColRef, 
   usersColRef,
+  studentFeesColRef,
   saveStudentToCloud, 
   deleteStudentFromCloud, 
   saveTransactionToCloud, 
@@ -34,7 +41,10 @@ import {
   clearAllCloudDatabase,
   saveUserAccountToCloud,
   deleteUserAccountFromCloud,
-  uploadBulkUsersToCloud
+  uploadBulkUsersToCloud,
+  saveStudentFeeToCloud,
+  deleteStudentFeeFromCloud,
+  uploadBulkFeesToCloud
 } from './firebase';
 
 // Import components
@@ -45,14 +55,16 @@ import RekapBulanan from './components/RekapBulanan';
 import Settings from './components/Settings';
 import LoginModal from './components/LoginModal';
 import StudentPortal from './components/StudentPortal';
+import IuranTagihan from './components/IuranTagihan';
 
 const LOCAL_STORAGE_KEY_STUDENTS = 'sd_pintar_students_v1';
 const LOCAL_STORAGE_KEY_TRANSACTIONS = 'sd_pintar_transactions_v1';
 const LOCAL_STORAGE_KEY_USERS = 'sd_pintar_users_v1';
+const LOCAL_STORAGE_KEY_FEES = 'sd_pintar_fees_v1';
 const LOCAL_STORAGE_KEY_AUTH = 'sd_pintar_auth_v1';
 
 export default function App() {
-  // Navigation states: 'dashboard', 'cashier', 'students', 'rekap'
+  // Navigation states: 'dashboard', 'cashier', 'students', 'rekap', 'iuran', 'settings'
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Authentication State
@@ -81,10 +93,21 @@ export default function App() {
       return INITIAL_USER_ACCOUNTS;
     }
   });
+  const [fees, setFees] = useState<StudentFee[]>(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY_FEES);
+      return stored ? JSON.parse(stored) : INITIAL_STUDENT_FEES;
+    } catch (e) {
+      return INITIAL_STUDENT_FEES;
+    }
+  });
 
   // Cloud Sync Statuses
   const [loadingCloud, setLoadingCloud] = useState<boolean>(true);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'error'>('synced');
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(new Date());
+  const [isManualSyncing, setIsManualSyncing] = useState<boolean>(false);
+  const [showSyncSuccessToast, setShowSyncSuccessToast] = useState<boolean>(false);
 
   // UX Cross-communication triggers: transition student reference from dashboard click to students tab
   const [dashboardSelectedStudent, setDashboardSelectedStudent] = useState<Student | null>(null);
@@ -132,7 +155,17 @@ export default function App() {
           await uploadBulkUsersToCloud(INITIAL_USER_ACCOUNTS);
         }
 
+        // Check student fees collection in Firestore
+        const feesSnapshot = await getDocs(studentFeesColRef);
+        if (feesSnapshot.empty) {
+          console.log('Migrating initial fees to Firestore...');
+          const storedFees = localStorage.getItem(LOCAL_STORAGE_KEY_FEES);
+          const feesToMigrate = storedFees ? JSON.parse(storedFees) : INITIAL_STUDENT_FEES;
+          await uploadBulkFeesToCloud(feesToMigrate);
+        }
+
         setSyncStatus('synced');
+        setLastSyncTime(new Date());
       } catch (error) {
         console.error('Error during initial cloud initialization:', error);
         setSyncStatus('error');
@@ -157,6 +190,7 @@ export default function App() {
       setStudents(cloudStudents);
       localStorage.setItem(LOCAL_STORAGE_KEY_STUDENTS, JSON.stringify(cloudStudents));
       setSyncStatus('synced');
+      setLastSyncTime(new Date());
     }, (error) => {
       console.error('Firestore students subscription error:', error);
       setSyncStatus('error');
@@ -173,6 +207,7 @@ export default function App() {
       setTransactions(cloudTxs);
       localStorage.setItem(LOCAL_STORAGE_KEY_TRANSACTIONS, JSON.stringify(cloudTxs));
       setSyncStatus('synced');
+      setLastSyncTime(new Date());
     }, (error) => {
       console.error('Firestore transactions subscription error:', error);
       setSyncStatus('error');
@@ -193,12 +228,84 @@ export default function App() {
       console.error('Firestore users subscription error:', error);
     });
 
+    // Subscribe to studentFees list
+    const unsubscribeFees = onSnapshot(studentFeesColRef, (snapshot) => {
+      const cloudFees: StudentFee[] = [];
+      snapshot.forEach((docSnap) => {
+        cloudFees.push(docSnap.data() as StudentFee);
+      });
+      if (cloudFees.length > 0) {
+        setFees(cloudFees);
+        localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(cloudFees));
+      }
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    }, (error) => {
+      console.error('Firestore fees subscription error:', error);
+    });
+
     return () => {
       unsubscribeStudents();
       unsubscribeTransactions();
       unsubscribeUsers();
+      unsubscribeFees();
     };
   }, []);
+
+  // --- MANUAL SYNC HANDLER ---
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    setSyncStatus('saving');
+    try {
+      // Re-fetch all collections
+      const [sSnap, tSnap, uSnap, fSnap] = await Promise.all([
+        getDocs(studentsColRef),
+        getDocs(transactionsColRef),
+        getDocs(usersColRef),
+        getDocs(studentFeesColRef)
+      ]);
+
+      const freshStudents: Student[] = [];
+      sSnap.forEach(d => freshStudents.push(d.data() as Student));
+      if (freshStudents.length > 0) {
+        setStudents(freshStudents);
+        localStorage.setItem(LOCAL_STORAGE_KEY_STUDENTS, JSON.stringify(freshStudents));
+      }
+
+      const freshTxs: Transaction[] = [];
+      tSnap.forEach(d => freshTxs.push(d.data() as Transaction));
+      if (freshTxs.length > 0) {
+        freshTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setTransactions(freshTxs);
+        localStorage.setItem(LOCAL_STORAGE_KEY_TRANSACTIONS, JSON.stringify(freshTxs));
+      }
+
+      const freshUsers: UserAccount[] = [];
+      uSnap.forEach(d => freshUsers.push(d.data() as UserAccount));
+      if (freshUsers.length > 0) {
+        setUserAccounts(freshUsers);
+        localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(freshUsers));
+      }
+
+      const freshFees: StudentFee[] = [];
+      fSnap.forEach(d => freshFees.push(d.data() as StudentFee));
+      if (freshFees.length > 0) {
+        setFees(freshFees);
+        localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(freshFees));
+      }
+
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+      setShowSyncSuccessToast(true);
+      setTimeout(() => setShowSyncSuccessToast(false), 3000);
+    } catch (e) {
+      console.error('Manual sync failed:', e);
+      setSyncStatus('error');
+    } finally {
+      setIsManualSyncing(false);
+    }
+  };
+
 
   // --- BUSINESS LOGIC HANDLERS ---
 
@@ -606,6 +713,138 @@ export default function App() {
     uploadBulkUsersToCloud(defaultUsers).catch(e => console.error('Failed to reset user accounts in cloud:', e));
   };
 
+  // --- FEE (IURAN LKS & PRAMUKA) HANDLERS ---
+  const handleAddFee = async (newFee: StudentFee): Promise<void> => {
+    setSyncStatus('saving');
+    const updated = [newFee, ...fees];
+    setFees(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(updated));
+
+    try {
+      await saveStudentFeeToCloud(newFee);
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Failed to save student fee to cloud:', e);
+      setSyncStatus('error');
+    }
+  };
+
+  const handleBulkAddFee = async (newFeesList: StudentFee[]): Promise<void> => {
+    setSyncStatus('saving');
+    const updated = [...newFeesList, ...fees];
+    setFees(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(updated));
+
+    try {
+      await uploadBulkFeesToCloud(newFeesList);
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Failed to bulk upload student fees to cloud:', e);
+      setSyncStatus('error');
+    }
+  };
+
+  const handlePayFee = async (
+    feeId: string, 
+    paymentData: Omit<FeePayment, 'id'>, 
+    deductFromSavings: boolean = false
+  ): Promise<void> => {
+    setSyncStatus('saving');
+    try {
+      const targetFee = fees.find(f => f.id === feeId);
+      if (!targetFee) return;
+
+      const newPayment: FeePayment = {
+        ...paymentData,
+        id: `pay-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      };
+
+      const newPaidAmount = targetFee.paidAmount + paymentData.amount;
+      const isNowLunas = newPaidAmount >= targetFee.targetAmount;
+      const newStatus: 'LUNAS' | 'BELUM_LUNAS' = isNowLunas ? 'LUNAS' : 'BELUM_LUNAS';
+
+      const updatedFee: StudentFee = {
+        ...targetFee,
+        paidAmount: newPaidAmount,
+        status: newStatus,
+        payments: [...targetFee.payments, newPayment]
+      };
+
+      // 1. Update fee locally and in Firestore
+      const updatedFees = fees.map(f => f.id === feeId ? updatedFee : f);
+      setFees(updatedFees);
+      localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(updatedFees));
+
+      const cloudPromises: Promise<any>[] = [saveStudentFeeToCloud(updatedFee)];
+
+      // 2. If deducted from savings, create TARIK transaction and update student balance
+      if (deductFromSavings) {
+        const student = students.find(s => s.id === targetFee.studentId);
+        if (student) {
+          const updatedStudent: Student = {
+            ...student,
+            balance: Math.max(0, student.balance - paymentData.amount)
+          };
+          const feeTx: Transaction = {
+            id: `t-tarik-fee-${Date.now()}`,
+            studentId: student.id,
+            studentName: student.name,
+            studentGrade: student.grade,
+            type: 'TARIK',
+            amount: paymentData.amount,
+            date: paymentData.date || new Date().toISOString(),
+            notes: `Pelunasan ${targetFee.title} (${targetFee.feeType})`,
+            recordedBy: paymentData.recordedBy
+          };
+
+          cloudPromises.push(saveStudentToCloud(updatedStudent));
+          cloudPromises.push(saveTransactionToCloud(feeTx));
+        }
+      }
+
+      await Promise.all(cloudPromises);
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Failed to process fee payment:', e);
+      setSyncStatus('error');
+    }
+  };
+
+  const handleEditFee = async (updatedFee: StudentFee): Promise<void> => {
+    setSyncStatus('saving');
+    const updated = fees.map(f => f.id === updatedFee.id ? updatedFee : f);
+    setFees(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(updated));
+
+    try {
+      await saveStudentFeeToCloud(updatedFee);
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Failed to update student fee in cloud:', e);
+      setSyncStatus('error');
+    }
+  };
+
+  const handleDeleteFee = async (feeId: string): Promise<void> => {
+    setSyncStatus('saving');
+    const updated = fees.filter(f => f.id !== feeId);
+    setFees(updated);
+    localStorage.setItem(LOCAL_STORAGE_KEY_FEES, JSON.stringify(updated));
+
+    try {
+      await deleteStudentFeeFromCloud(feeId);
+      setSyncStatus('synced');
+      setLastSyncTime(new Date());
+    } catch (e) {
+      console.error('Failed to delete student fee from cloud:', e);
+      setSyncStatus('error');
+    }
+  };
+
   // Cross-component navigations (e.g., clicking top saver goes to student ledger card)
   const handleViewStudentFromDashboard = (student: Student) => {
     setDashboardSelectedStudent(student);
@@ -614,6 +853,9 @@ export default function App() {
 
   // UI Date time string
   const currentLocalDateString = formatDate(new Date().toISOString());
+
+  // Count unpaid fees for badges
+  const unpaidFeesCount = fees.filter(f => f.status === 'BELUM_LUNAS').length;
 
   // 1. If not logged in, show Login Screen
   if (!currentUser) {
@@ -640,6 +882,7 @@ export default function App() {
         currentUser={currentUser}
         students={students}
         transactions={transactions}
+        fees={fees}
         onLogout={handleLogout}
       />
     );
@@ -649,6 +892,19 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 lg:h-screen flex flex-col lg:flex-row font-sans text-slate-800 antialiased overflow-hidden" id="school-savings-main-app">
       
+      {/* Toast Notifikasi Sukses Sinkronisasi */}
+      {showSyncSuccessToast && (
+        <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl border-2 border-emerald-500 shadow-[4px_4px_0px_0px_#10b981] flex items-center gap-3 animate-in fade-in slide-in-from-top-3">
+          <div className="p-1 bg-emerald-500 text-slate-900 rounded-lg">
+            <Check size={16} className="stroke-[3]" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-white">Sinkronisasi Cloud Berhasil</p>
+            <p className="text-[10px] text-emerald-300 font-medium">Seluruh data kasir, saldo, dan tagihan terupdate!</p>
+          </div>
+        </div>
+      )}
+
       {/* 1. DESKTOP SIDEBAR NAVIGATION (Visible only on lg viewport) */}
       <aside className="w-64 bg-white border-r border-slate-200 flex-col justify-between hidden lg:flex no-print shrink-0" id="desktop-sidebar">
         <div className="flex flex-col flex-1">
@@ -703,6 +959,27 @@ export default function App() {
               <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">{students.length}</span>
             </button>
             <button
+              id="nav-btn-sidebar-iuran"
+              onClick={() => { setActiveTab('iuran'); }}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-bold text-xs tracking-wide transition-all cursor-pointer ${
+                activeTab === 'iuran' 
+                  ? 'bg-indigo-50 text-indigo-700 shadow-3xs' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/70'
+              }`}
+            >
+              <Receipt size={15} />
+              <span className="flex-1 text-left">Iuran LKS & Pramuka</span>
+              {unpaidFeesCount > 0 ? (
+                <span className="text-[10px] font-black bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-300">
+                  {unpaidFeesCount} Tunggakan
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                  Lengkap
+                </span>
+              )}
+            </button>
+            <button
               id="nav-btn-sidebar-rekap"
               onClick={() => { setActiveTab('rekap'); }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-bold text-xs tracking-wide transition-all cursor-pointer ${
@@ -730,7 +1007,18 @@ export default function App() {
         </div>
 
         {/* User / School Panel Footing */}
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 space-y-2">
+          {/* Tombol Sinkronisasi Sidebar */}
+          <button
+            onClick={handleManualSync}
+            disabled={isManualSyncing}
+            className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl border border-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            title="Klik untuk sinkronisasi manual data sekarang"
+          >
+            <RefreshCw size={13} className={`text-yellow-400 ${isManualSyncing ? 'animate-spin' : ''}`} />
+            <span>{isManualSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
+          </button>
+
           <div className="bg-indigo-650 rounded-2xl p-4 text-white relative overflow-hidden group">
             <div className="absolute right-[-10px] bottom-[-10px] w-16 h-16 bg-white/10 rounded-full blur-sm" />
             <p className="text-[9px] opacity-80 uppercase tracking-widest font-extrabold mb-1">Status Operasional Admin</p>
@@ -757,6 +1045,17 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Mobile Sync Button */}
+          <button
+            onClick={handleManualSync}
+            disabled={isManualSyncing}
+            className="p-1.5 bg-slate-900 text-yellow-400 rounded-lg border border-slate-700 flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+            title="Sinkronisasi Data"
+          >
+            <RefreshCw size={14} className={isManualSyncing ? 'animate-spin' : ''} />
+            <span className="hidden xs:inline text-[11px] text-white">Sinkron</span>
+          </button>
+
           <button 
             onClick={handleLogout}
             className="p-1.5 text-slate-600 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 border border-slate-200 rounded-lg flex items-center gap-1 text-xs font-bold"
@@ -774,16 +1073,28 @@ export default function App() {
         <header className="h-20 bg-white border-b border-slate-200 px-8 shrink-0 hidden lg:flex items-center justify-between no-print" id="desktop-top-header">
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {activeTab === 'dashboard' && 'Dashboard Tabungan'}
+              {activeTab === 'dashboard' && 'Dashboard Tabungan & Keuangan'}
               {activeTab === 'cashier' && 'Transaksi Tabungan Siswa'}
               {activeTab === 'students' && 'Manajemen Akun Siswa'}
+              {activeTab === 'iuran' && 'Iuran Buku LKS & Pramuka'}
               {activeTab === 'rekap' && 'Laporan Jurnal Rekapitulasi'}
               {activeTab === 'settings' && 'Pengaturan Aplikasi & Impor Massal'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">Hai, {currentUser.name} • SD NEGERI 1 GEMBLENGAN • Kas Terbuka</p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex flex-col items-end text-right">
+          <div className="flex items-center space-x-3">
+            {/* Tombol Sinkronisasi Utama di Top Header */}
+            <button
+              onClick={handleManualSync}
+              disabled={isManualSyncing}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-900 border-2 border-slate-900 rounded-xl font-bold text-xs flex items-center gap-2 shadow-[2px_2px_0px_0px_#0f172a] hover:translate-y-[-1px] transition-all cursor-pointer disabled:opacity-50"
+              title="Sinkronisasi manual seluruh data ke Firestore"
+            >
+              <RefreshCw size={13} className={`text-indigo-600 ${isManualSyncing ? 'animate-spin' : ''}`} />
+              <span>{isManualSyncing ? 'Menyinkronkan...' : 'Sinkronkan Data'}</span>
+            </button>
+
+            <div className="flex flex-col items-end text-right pl-2">
               <span className="text-[10px] font-bold text-slate-400 capitalize tracking-wider flex items-center gap-1">
                 <Calendar size={11} /> {currentLocalDateString}
               </span>
@@ -829,19 +1140,29 @@ export default function App() {
                   <><strong>Menyinkronkan:</strong> Sedang memperbarui laporan ke database Cloud secara real-time...</>
                 )}
                 {syncStatus === 'synced' && (
-                  <><strong>Penyimpanan Otomatis:</strong> Data siswa & jurnal kas tersinkronisasi otomatis dengan database Cloud Firebase!</>
+                  <><strong>Penyimpanan Otomatis:</strong> Data siswa, iuran buku LKS & Pramuka, serta jurnal kas tersinkronisasi dengan Cloud Firebase!</>
                 )}
               </span>
             </div>
-            <p className={`font-mono text-[10px] font-semibold border px-2.5 py-1 rounded-lg w-fit ${
-              syncStatus === 'error' 
-                ? 'bg-rose-100 border-rose-300 text-rose-800' 
-                : syncStatus === 'saving'
-                ? 'bg-amber-100 border-amber-300 text-amber-850'
-                : 'bg-indigo-950 border-indigo-800 text-sky-200'
-            }`}>
-              {loadingCloud ? 'Memuat Database...' : `Cloud DB: ${students.length} Siswa | ${transactions.length} Jurnal`}
-            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleManualSync}
+                disabled={isManualSyncing}
+                className="px-2 py-0.5 bg-white/20 hover:bg-white/30 text-white rounded text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+              >
+                <RefreshCw size={10} className={isManualSyncing ? 'animate-spin' : ''} />
+                <span>Sinkron Ulang</span>
+              </button>
+              <p className={`font-mono text-[10px] font-semibold border px-2.5 py-1 rounded-lg w-fit ${
+                syncStatus === 'error' 
+                  ? 'bg-rose-100 border-rose-300 text-rose-800' 
+                  : syncStatus === 'saving'
+                  ? 'bg-amber-100 border-amber-300 text-amber-850'
+                  : 'bg-indigo-950 border-indigo-800 text-sky-200'
+              }`}>
+                {loadingCloud ? 'Memuat Database...' : `Cloud: ${students.length} Siswa | ${transactions.length} Jurnal | ${fees.length} Iuran`}
+              </p>
+            </div>
           </div>
 
           {/* Tab Selection routing */}
@@ -850,6 +1171,9 @@ export default function App() {
               <Dashboard 
                 students={students} 
                 transactions={transactions} 
+                fees={fees}
+                syncStatus={syncStatus}
+                onSyncNow={handleManualSync}
                 onViewStudent={handleViewStudentFromDashboard}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
                 onReconcileBalances={handleReconcileBalances}
@@ -859,7 +1183,7 @@ export default function App() {
             {activeTab === 'cashier' && (
               <Cashier 
                 students={students} 
-                transactions={transactions}
+                transactions={transactions} 
                 onAddTransaction={handleAddTransaction}
                 onEditTransaction={handleEditTransaction}
                 onDeleteTransaction={handleDeleteTransaction}
@@ -878,6 +1202,21 @@ export default function App() {
                 onDeleteTransaction={handleDeleteTransaction}
                 preSelectedStudent={dashboardSelectedStudent}
                 onClosePreSelection={() => setDashboardSelectedStudent(null)}
+                onNavigateToTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
+            {activeTab === 'iuran' && (
+              <IuranTagihan
+                students={students}
+                fees={fees}
+                transactions={transactions}
+                currentUserName={currentUser?.name || "Bu Rismawati, S.Pd."}
+                onAddFee={handleAddFee}
+                onBulkAddFee={handleBulkAddFee}
+                onPayFee={handlePayFee}
+                onEditFee={handleEditFee}
+                onDeleteFee={handleDeleteFee}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
               />
             )}
@@ -932,52 +1271,65 @@ export default function App() {
         <button
           id="mob-btn-dashboard"
           onClick={() => { setActiveTab('dashboard'); setDashboardSelectedStudent(null); }}
-          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer ${
             activeTab === 'dashboard' ? 'text-indigo-650 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
           }`}
         >
-          <LayoutDashboard size={18} />
-          <span className="text-[9px] mt-1">Dashboard</span>
+          <LayoutDashboard size={17} />
+          <span className="text-[8px] mt-1">Dashboard</span>
         </button>
         <button
           id="mob-btn-cashier"
           onClick={() => setActiveTab('cashier')}
-          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer ${
             activeTab === 'cashier' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
           }`}
         >
-          <Wallet size={18} />
-          <span className="text-[9px] mt-1">Transaksi</span>
+          <Wallet size={17} />
+          <span className="text-[8px] mt-1">Transaksi</span>
         </button>
         <button
           id="mob-btn-students"
           onClick={() => setActiveTab('students')}
-          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer ${
             activeTab === 'students' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
           }`}
         >
-          <Users size={18} />
-          <span className="text-[9px] mt-1">Siswa</span>
+          <Users size={17} />
+          <span className="text-[8px] mt-1">Siswa</span>
+        </button>
+        <button
+          id="mob-btn-iuran"
+          onClick={() => setActiveTab('iuran')}
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer relative ${
+            activeTab === 'iuran' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
+          }`}
+        >
+          <Receipt size={17} />
+          <span className="text-[8px] mt-1">Iuran</span>
+          {unpaidFeesCount > 0 && (
+            <span className="absolute top-1 right-2 w-2 h-2 bg-rose-500 rounded-full" />
+          )}
         </button>
         <button
           id="mob-btn-rekap"
           onClick={() => setActiveTab('rekap')}
-          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer ${
             activeTab === 'rekap' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
           }`}
         >
-          <FileSpreadsheet size={18} />
-          <span className="text-[9px] mt-1">Rekap</span>
+          <FileSpreadsheet size={17} />
+          <span className="text-[8px] mt-1">Rekap</span>
         </button>
         <button
           id="mob-btn-settings"
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all flex-1 cursor-pointer ${
+          className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all flex-1 cursor-pointer ${
             activeTab === 'settings' ? 'text-indigo-655 bg-indigo-50/50 font-bold' : 'text-slate-400 font-medium'
           }`}
         >
-          <Sliders size={18} />
-          <span className="text-[9px] mt-1">Pengaturan</span>
+          <Sliders size={17} />
+          <span className="text-[8px] mt-1">Pengaturan</span>
         </button>
       </div>
 

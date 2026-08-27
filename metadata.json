@@ -1,6 +1,6 @@
 {
   "name": "Tabungan Siswa Kelas 5 SDN 1 Gemblengan",
-  "description": "Aplikasi tabungan khusus Kelas 5 SDN 1 Gemblengan dengan fitur pencatatan setoran, penarikan, rekapitulasi jurnal, ekspor-impor Excel, dan laporan mutasi buku.",
+  "description": "Aplikasi tabungan dan iuran siswa Kelas 5 SDN 1 Gemblengan dengan fitur pencatatan setoran, penarikan, pelunasan iuran LKS & Pramuka, rekapitulasi jurnal, ekspor-impor Excel, dan sinkronisasi Cloud.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -53,3 +53,38 @@ export interface MonthlyStats {
   netSavings: number;
   transactionCount: number;
 }
+
+export type FeeType = 'LKS' | 'PRAMUKA' | 'LAINNYA';
+
+export type FeeStatus = 'LUNAS' | 'BELUM_LUNAS';
+
+export interface FeePayment {
+  id: string;
+  feeId: string;
+  studentId: string;
+  amount: number;
+  date: string; // ISO string
+  method: 'TUNAI' | 'POTONG_TABUNGAN';
+  recordedBy: string;
+  receiptNo?: string;
+  notes?: string;
+}
+
+export interface StudentFee {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentNis: string;
+  studentGrade: GradeClass;
+  feeType: FeeType;
+  title: string; // e.g. "Paket LKS Semester 1", "Iuran Pramuka Bulan Agustus"
+  categoryName?: string;
+  period?: string; // e.g. "Semester 1 2026/2027", "Agustus 2026"
+  targetAmount: number;
+  paidAmount: number;
+  status: FeeStatus;
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
+  payments?: FeePayment[];
+}
