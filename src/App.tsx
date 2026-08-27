@@ -426,6 +426,43 @@ export default function App() {
     });
   };
 
+  // Reconcile and synchronize student balances strictly from their transaction histories
+  const handleReconcileBalances = async () => {
+    setSyncStatus('saving');
+    try {
+      const promises: Promise<any>[] = [];
+      let updatedCount = 0;
+
+      students.forEach((student) => {
+        const studentTxs = transactions.filter(t => t.studentId === student.id);
+        const calculatedBalance = studentTxs.reduce((sum, t) => {
+          return t.type === 'SETOR' ? sum + t.amount : sum - t.amount;
+        }, 0);
+
+        if (student.balance !== calculatedBalance) {
+          updatedCount++;
+          const updatedStudent: Student = {
+            ...student,
+            balance: Math.max(0, calculatedBalance)
+          };
+          promises.push(saveStudentToCloud(updatedStudent));
+        }
+      });
+
+      if (promises.length > 0) {
+        await Promise.all(promises);
+        alert(`Berhasil! Saldo ${updatedCount} siswa telah disinkronkan 100% dengan buku mutasi transaksi.`);
+      } else {
+        alert('Seluruh saldo siswa dan buku transaksi sudah 100% seimbang (tidak ada selisih).');
+      }
+      setSyncStatus('synced');
+    } catch (e) {
+      console.error('Failed to reconcile balances:', e);
+      setSyncStatus('error');
+      alert('Gagal merekonsiliasi saldo: ' + e);
+    }
+  };
+
   // Master Restore/Import helper
   const handleImportData = (importedStudents: Student[], importedTransactions: Transaction[]) => {
     setSyncStatus('saving');
@@ -815,6 +852,7 @@ export default function App() {
                 transactions={transactions} 
                 onViewStudent={handleViewStudentFromDashboard}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
+                onReconcileBalances={handleReconcileBalances}
               />
             )}
 

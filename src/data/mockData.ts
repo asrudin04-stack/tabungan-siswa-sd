@@ -127,6 +127,32 @@ export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
 ];
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
+  // January 2026
+  {
+    id: 't-0-s4',
+    studentId: 's-4',
+    studentName: 'Lani Rahmawati Putri',
+    studentGrade: '5',
+    type: 'SETOR',
+    amount: 25000,
+    date: '2026-01-15T08:00:00.000Z',
+    notes: 'Setoran awal pembukaan buku tabungan',
+    recordedBy: 'Bu Guru Risma'
+  },
+
+  // February 2026
+  {
+    id: 't-0-s3',
+    studentId: 's-3',
+    studentName: 'Rian Pratama Wijaya',
+    studentGrade: '5',
+    type: 'SETOR',
+    amount: 100000,
+    date: '2026-02-01T09:20:00.000Z',
+    notes: 'Setoran tabungan awal',
+    recordedBy: 'Pak Guru Agus'
+  },
+
   // March 2026
   {
     id: 't-1',
@@ -205,6 +231,17 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     amount: 150000,
     date: '2026-04-15T08:00:00.000Z',
     notes: 'Tabungan bulanan',
+    recordedBy: 'Bu Guru Risma'
+  },
+  {
+    id: 't-0-s7',
+    studentId: 's-7',
+    studentName: 'Faza Al-Ghifari',
+    studentGrade: '5',
+    type: 'SETOR',
+    amount: 5000,
+    date: '2026-04-10T08:15:00.000Z',
+    notes: 'Setoran awal pembukaan tabungan',
     recordedBy: 'Bu Guru Risma'
   },
   {

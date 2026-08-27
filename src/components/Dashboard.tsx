@@ -12,7 +12,11 @@ import {
   Sparkles,
   School,
   LineChart as LineChartIcon,
-  Activity
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  Scale
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, getClassBadgeStyle, getIndonesianMonthYear } from '../utils';
@@ -37,16 +41,25 @@ interface DashboardProps {
   transactions: Transaction[];
   onViewStudent: (student: Student) => void;
   onNavigateToTab: (tab: string) => void;
+  onReconcileBalances?: () => void;
 }
 
-export default function Dashboard({ students, transactions, onViewStudent, onNavigateToTab }: DashboardProps) {
+export default function Dashboard({ 
+  students, 
+  transactions, 
+  onViewStudent, 
+  onNavigateToTab,
+  onReconcileBalances 
+}: DashboardProps) {
   // Available Month-Year filters from transactions
   const monthFilters = useMemo(() => {
     const months = new Set<string>();
     transactions.forEach(t => {
       // Date in ISO format -> extract YYYY-MM
-      const yyyymm = t.date.substring(0, 7);
-      months.add(yyyymm);
+      if (t.date) {
+        const yyyymm = t.date.substring(0, 7);
+        months.add(yyyymm);
+      }
     });
     // Sort descending
     return Array.from(months).sort((a, b) => b.localeCompare(a));
@@ -60,38 +73,61 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
   // Filter transactions based on date
   const filteredTransactions = useMemo(() => {
     if (selectedMonth === 'ALL') return transactions;
-    return transactions.filter(t => t.date.startsWith(selectedMonth));
+    return transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
   }, [transactions, selectedMonth]);
 
   // Statistics calculations
   const stats = useMemo(() => {
-    // Total Pembukuan (Current cash in school bank, calculated from students' current balances)
+    // 1. All-time global ledger calculations
+    let allTimeDeposits = 0;
+    let allTimeWithdrawals = 0;
+    transactions.forEach(t => {
+      if (t.type === 'SETOR') {
+        allTimeDeposits += t.amount;
+      } else if (t.type === 'TARIK') {
+        allTimeWithdrawals += t.amount;
+      }
+    });
+
+    const allTimeNetLedger = allTimeDeposits - allTimeWithdrawals;
+    // Current total student balances in school bank
     const schoolTotalSavings = students.reduce((sum, s) => sum + s.balance, 0);
-    
-    // Income and withdrawals for the selected period
+
+    // 2. Selected period calculations
     let deposits = 0;
     let withdrawals = 0;
     
     filteredTransactions.forEach(t => {
       if (t.type === 'SETOR') {
         deposits += t.amount;
-      } else {
+      } else if (t.type === 'TARIK') {
         withdrawals += t.amount;
       }
     });
+
+    const netPeriodAmount = deposits - withdrawals;
+
+    // Discrepancy check between student balances sum and total ledger transactions
+    const discrepancy = Math.abs(schoolTotalSavings - allTimeNetLedger);
+    const isBalanced = discrepancy === 0;
 
     // Active students with savings > 0
     const activeSaverCount = students.filter(s => s.balance > 0).length;
 
     return {
       schoolTotalSavings,
+      allTimeDeposits,
+      allTimeWithdrawals,
+      allTimeNetLedger,
       deposits,
       withdrawals,
-      netTransactionAmount: deposits - withdrawals,
+      netTransactionAmount: netPeriodAmount,
+      discrepancy,
+      isBalanced,
       activeSaverCount,
       totalStudentsCount: students.length
     };
-  }, [students, filteredTransactions]);
+  }, [students, transactions, filteredTransactions]);
 
   // Class statistics (Kelas 5)
   const classSavingsInfo = useMemo(() => {
@@ -333,18 +369,25 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
               <Wallet size={20} className="text-white" />
             </span>
             <span className="text-[10px] font-black bg-yellow-400 text-slate-950 px-2.5 py-1 rounded-full uppercase tracking-wider">
-              Total Saldo Kas
+              {selectedMonth === 'ALL' ? 'Total Saldo Kas' : 'Saldo Kas Sekolah'}
             </span>
           </div>
           <div className="mt-4">
-            <p className="text-xs text-indigo-100 font-bold">Dana Tabungan Terkumpul</p>
+            <p className="text-xs text-indigo-100 font-bold">Total Dana Tabungan Siswa</p>
             <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight font-mono text-yellow-300 mt-1 drop-shadow-sm">
               {formatCurrency(stats.schoolTotalSavings)}
             </h3>
           </div>
-          <div className="mt-3 text-[11px] flex items-center gap-1.5 text-indigo-100 font-semibold">
-            <School size={12} className="text-yellow-300" />
-            <span>Rekening Kas Sekolah Aman luring</span>
+          <div className="mt-3 text-[11px] flex items-center justify-between text-indigo-100 font-semibold border-t border-white/20 pt-2">
+            <span className="flex items-center gap-1">
+              <School size={12} className="text-yellow-300" />
+              <span>Rekening Kas Kelas 5</span>
+            </span>
+            {selectedMonth !== 'ALL' && (
+              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md font-mono font-bold">
+                Net Bln: {stats.netTransactionAmount >= 0 ? '+' : ''}{formatCurrency(stats.netTransactionAmount)}
+              </span>
+            )}
           </div>
         </motion.div>
 
@@ -364,16 +407,18 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-500 font-bold">Total Kredit Masuk</p>
+              <p className="text-xs text-slate-500 font-bold">
+                {selectedMonth === 'ALL' ? 'Seluruh Setoran Masuk' : `Setoran (${getIndonesianMonthYear(selectedMonth).split(' ')[0]})`}
+              </p>
               <h3 className="text-2xl font-black tracking-tight text-emerald-600 font-mono mt-1">
                 {formatCurrency(stats.deposits)}
               </h3>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
-            <span>Uang Masuk</span>
+            <span>Kredit Uang Masuk</span>
             <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-black flex items-center gap-0.5">
-              <TrendingUp size={12} /> Aktif
+              <TrendingUp size={12} /> {filteredTransactions.filter(t => t.type === 'SETOR').length}x Setor
             </span>
           </div>
         </motion.div>
@@ -394,21 +439,23 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-500 font-bold">Total Debit Keluar</p>
+              <p className="text-xs text-slate-500 font-bold">
+                {selectedMonth === 'ALL' ? 'Seluruh Penarikan Keluar' : `Penarikan (${getIndonesianMonthYear(selectedMonth).split(' ')[0]})`}
+              </p>
               <h3 className="text-2xl font-black tracking-tight text-rose-600 font-mono mt-1">
                 {formatCurrency(stats.withdrawals)}
               </h3>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
-            <span>Uang Diambil</span>
+            <span>Debit Uang Keluar</span>
             <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-black">
-              Keperluan Siswa
+              {filteredTransactions.filter(t => t.type === 'TARIK').length}x Tarik
             </span>
           </div>
         </motion.div>
 
-        {/* Total Siswa Berpartisipasi */}
+        {/* Arus Kas Bersih / Partisipasi Siswa */}
         <motion.div 
           whileHover={{ y: -4, scale: 1.01 }}
           className="bg-white p-6 rounded-2xl neo-3d-sky flex flex-col justify-between"
@@ -417,29 +464,91 @@ export default function Dashboard({ students, transactions, onViewStudent, onNav
           <div>
             <div className="flex justify-between items-start">
               <span className="p-2.5 bg-sky-100 text-sky-800 rounded-xl border border-sky-250">
-                <Users size={20} className="stroke-[2.5]" />
+                {selectedMonth === 'ALL' ? <Users size={20} className="stroke-[2.5]" /> : <Scale size={20} className="stroke-[2.5]" />}
               </span>
               <span className="text-[10px] font-black text-sky-800 bg-sky-100 px-2.5 py-1 rounded-full uppercase tracking-wider block">
-                Partisipasi Siswa
+                {selectedMonth === 'ALL' ? 'Partisipasi Siswa' : 'Tabungan Bersih'}
               </span>
             </div>
             <div className="mt-4">
-              <p className="text-xs text-slate-500 font-bold">Rasio Siswa Menabung</p>
-              <h3 className="text-2xl font-black tracking-tight text-slate-900 font-mono mt-1">
-                {stats.activeSaverCount} <span className="text-xs font-semibold text-slate-400">/ {stats.totalStudentsCount} Siswa</span>
+              <p className="text-xs text-slate-500 font-bold">
+                {selectedMonth === 'ALL' ? 'Rasio Siswa Menabung' : 'Mutasi Bersih (Setor - Tarik)'}
+              </p>
+              <h3 className={`text-2xl font-black tracking-tight font-mono mt-1 ${
+                selectedMonth === 'ALL' 
+                  ? 'text-slate-900' 
+                  : stats.netTransactionAmount >= 0 ? 'text-indigo-600' : 'text-rose-600'
+              }`}>
+                {selectedMonth === 'ALL' ? (
+                  <>
+                    {stats.activeSaverCount} <span className="text-xs font-semibold text-slate-400">/ {stats.totalStudentsCount} Siswa</span>
+                  </>
+                ) : (
+                  <>
+                    {stats.netTransactionAmount >= 0 ? '+' : ''}{formatCurrency(stats.netTransactionAmount)}
+                  </>
+                )}
               </h3>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
-            <span>Tingkat Menabung</span>
+            <span>{selectedMonth === 'ALL' ? 'Tingkat Menabung' : 'Aktivitas Penabung'}</span>
             <span className="font-extrabold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md">
-              {stats.totalStudentsCount > 0 
-                ? `${Math.round((stats.activeSaverCount / stats.totalStudentsCount) * 100)}%` 
-                : '0%'}
+              {selectedMonth === 'ALL' ? (
+                stats.totalStudentsCount > 0 
+                  ? `${Math.round((stats.activeSaverCount / stats.totalStudentsCount) * 100)}%` 
+                  : '0%'
+              ) : (
+                `${stats.activeSaverCount} Siswa Aktif`
+              )}
             </span>
           </div>
         </motion.div>
 
+      </div>
+
+      {/* Baris Audit Rekonsiliasi Kas (Buku Kas Klop) */}
+      <div className={`p-4 rounded-2xl border-2 border-slate-900 transition-all ${
+        stats.isBalanced 
+          ? 'bg-emerald-50 shadow-[4px_4px_0px_0px_#10b981]' 
+          : 'bg-amber-50 shadow-[4px_4px_0px_0px_#f59e0b]'
+      }`} id="reconciliation-audit-banner">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className={`p-2 rounded-xl border-2 border-slate-900 text-white flex-shrink-0 ${
+              stats.isBalanced ? 'bg-emerald-500' : 'bg-amber-500'
+            }`}>
+              {stats.isBalanced ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-black text-slate-900">
+                  {stats.isBalanced ? '✅ Status Pembukuan Kas: 100% Seimbang & Klop' : '⚠️ Perlu Penyesuaian Saldo'}
+                </h3>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                  stats.isBalanced 
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}>
+                  Selisih: {formatCurrency(stats.discrepancy)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 font-medium mt-0.5">
+                <span className="font-bold text-slate-800">Rumus Neraca:</span> Total Seluruh Setoran ({formatCurrency(stats.allTimeDeposits)}) - Total Seluruh Penarikan ({formatCurrency(stats.allTimeWithdrawals)}) = Saldo Kas Sekolah ({formatCurrency(stats.schoolTotalSavings)}).
+              </p>
+            </div>
+          </div>
+
+          {onReconcileBalances && (
+            <button
+              onClick={onReconcileBalances}
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_#000] hover:translate-y-[-1px] transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+              title="Sinkronkan ulang saldo semua siswa berdasarkan seluruh riwayat mutasi transaksi"
+            >
+              <RefreshCw size={13} className="text-yellow-400" /> Sinkronkan Saldo
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grid Grafik Utama */}
