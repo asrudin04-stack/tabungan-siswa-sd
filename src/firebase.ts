@@ -99,6 +99,19 @@ export async function saveTransactionToCloud(transaction: Transaction) {
 }
 
 /**
+ * Deletes a single transaction from Firestore
+ */
+export async function deleteTransactionFromCloud(transactionId: string) {
+  try {
+    const transactionDocRef = doc(db, 'transactions', transactionId);
+    await deleteDoc(transactionDocRef);
+  } catch (error) {
+    console.error('Error deleting transaction from cloud:', error);
+    throw error;
+  }
+}
+
+/**
  * Performs a batch upload of multiple students and transactions
  * Useful for first-time seed migrations or restoration from JSON/Excel backup
  */

@@ -18,28 +18,36 @@ import {
   Building,
   CheckCircle2,
   FileCheck2,
-  AlertCircle
+  AlertCircle,
+  Edit3
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, formatDate, getClassBadgeStyle, getIndonesianMonthYear } from '../utils';
+import EditTransactionModal from './EditTransactionModal';
 
 interface RekapBulananProps {
   students: Student[];
   transactions: Transaction[];
   onImportData: (importedStudents: Student[], importedTransactions: Transaction[]) => void;
   onClearDatabase: () => void;
+  onEditTransaction?: (id: string, updated: Partial<Transaction>) => void;
+  onDeleteTransaction?: (id: string) => void;
 }
 
 export default function RekapBulanan({ 
   students, 
   transactions, 
   onImportData, 
-  onClearDatabase 
+  onClearDatabase,
+  onEditTransaction,
+  onDeleteTransaction
 }: RekapBulananProps) {
   // Filtration UI states
   const [filterType, setFilterType] = useState<'ALL' | 'SETOR' | 'TARIK'>('ALL');
   const [filterGrade, setFilterGrade] = useState<string>('ALL'); // 'ALL', '1', '2'..
   const [searchName, setSearchName] = useState('');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   
   // Dynamic Month Selectors from database
   const monthOptions = useMemo(() => {
@@ -420,12 +428,13 @@ export default function RekapBulanan({
                 <th className="py-4 px-5 text-right">Nominal</th>
                 <th className="py-4 px-5">Catatan</th>
                 <th className="py-4 px-5">Penerima</th>
+                {onEditTransaction && <th className="py-4 px-5 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-650" id="ledger-table-body-screen">
               {filteredLedger.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={onEditTransaction ? 9 : 8} className="py-12 text-center text-slate-400">
                     <Clock className="mx-auto stroke-1 text-slate-350 mb-2" size={32} />
                     Belum ada rekaman log transaksi untuk filter aktif.
                   </td>
@@ -456,6 +465,37 @@ export default function RekapBulanan({
                       </td>
                       <td className="py-3 px-5 text-slate-400 italic max-w-xs truncate">{t.notes || '-'}</td>
                       <td className="py-3 px-5 font-semibold text-slate-500 truncate">{t.recordedBy}</td>
+                      {onEditTransaction && (
+                        <td className="py-3 px-5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTransaction(t);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                              title="Koreksi transaksi"
+                            >
+                              <Edit3 size={13} />
+                            </button>
+                            {onDeleteTransaction && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm(`Hapus data transaksi ${t.type} senilai ${formatCurrency(t.amount)} untuk ${t.studentName}? Saldo siswa akan otomatis dikembalikan.`)) {
+                                    onDeleteTransaction(t.id);
+                                  }
+                                }}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                title="Hapus transaksi"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -570,6 +610,25 @@ export default function RekapBulanan({
 
         </div>
       </div>
+
+      {/* Global Edit Transaction Modal */}
+      {onEditTransaction && (
+        <EditTransactionModal
+          isOpen={isEditModalOpen}
+          transaction={editingTransaction}
+          students={students}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingTransaction(null);
+          }}
+          onSave={(id, updated) => {
+            onEditTransaction(id, updated);
+          }}
+          onDelete={onDeleteTransaction ? (id) => {
+            onDeleteTransaction(id);
+          } : undefined}
+        />
+      )}
 
     </div>
   );

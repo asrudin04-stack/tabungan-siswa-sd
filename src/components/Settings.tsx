@@ -48,6 +48,7 @@ interface SettingsProps {
   onUpdateUserAccount: (account: UserAccount) => void;
   onDeleteUserAccount: (id: string) => void;
   onImportUserAccounts: (newAccounts: UserAccount[]) => void;
+  onResetUserAccounts?: () => void;
 }
 
 export default function Settings({ 
@@ -61,7 +62,8 @@ export default function Settings({
   onAddUserAccount,
   onUpdateUserAccount,
   onDeleteUserAccount,
-  onImportUserAccounts
+  onImportUserAccounts,
+  onResetUserAccounts
 }: SettingsProps) {
   // Main Settings Section Tab
   const [activeSettingSection, setActiveSettingSection] = useState<'USERS' | 'IMPORT_STUDENTS' | 'BACKUP'>('USERS');
@@ -212,6 +214,58 @@ export default function Settings({
       onDeleteUserAccount(acc.id);
       setDbStateMsg({ text: `Akun ${acc.name} telah dihapus dari sistem.`, success: true });
       setTimeout(() => setDbStateMsg(null), 3000);
+    }
+  };
+
+  const handleQuickResetSingleUserPin = (acc: UserAccount) => {
+    const defaultPin = acc.role === 'admin' ? 'admin' : '1234';
+    if (window.confirm(`Reset Password/PIN untuk user "${acc.name}" (${acc.username}) ke default (${defaultPin})?`)) {
+      onUpdateUserAccount({
+        ...acc,
+        password: defaultPin
+      });
+      setDbStateMsg({ text: `Password/PIN ${acc.name} berhasil direset ke "${defaultPin}".`, success: true });
+      setTimeout(() => setDbStateMsg(null), 3000);
+    }
+  };
+
+  const handleResetAllUsers = () => {
+    const confirmMessage = 
+      `Apakah Anda yakin ingin RESET ULANG SELURUH DATA USER LOGIN ke setelan default?\n\n` +
+      `- Akun Admin Pengelola akan direset ke: admin / admin\n` +
+      `- Seluruh Akun Siswa akan direset ke NIS / 1234\n` +
+      `- Password, PIN, dan status aktif user akan disegarkan kembali.`;
+
+    if (window.confirm(confirmMessage)) {
+      if (onResetUserAccounts) {
+        onResetUserAccounts();
+      } else {
+        const defaultUsers: UserAccount[] = [
+          {
+            id: 'usr-admin-1',
+            username: 'admin',
+            password: 'admin',
+            name: 'Guru / Admin Pengelola',
+            role: 'admin',
+            status: 'active',
+            createdAt: '2026-01-01T00:00:00.000Z'
+          },
+          ...students.map((st) => ({
+            id: `usr-student-${st.id}`,
+            username: st.nis,
+            password: '1234',
+            name: st.name,
+            role: 'student' as const,
+            studentId: st.id,
+            studentNis: st.nis,
+            status: 'active' as const,
+            createdAt: st.createdAt
+          }))
+        ];
+        onImportUserAccounts(defaultUsers);
+      }
+      setDbStateMsg({ text: 'Seluruh data user login dan PIN siswa berhasil direset ke setelan awal!', success: true });
+      setTimeout(() => setDbStateMsg(null), 4000);
     }
   };
 
@@ -1030,6 +1084,16 @@ export default function Settings({
                 <span>Auto-Buat Akun Siswa</span>
               </button>
 
+              <button
+                type="button"
+                onClick={handleResetAllUsers}
+                className="py-2 px-3.5 bg-rose-50 hover:bg-rose-100 text-rose-900 border-2 border-slate-900 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#0284c7] cursor-pointer"
+                title="Reset ulang seluruh akun user login dan PIN ke setelan default"
+              >
+                <RefreshCw size={15} className="text-rose-600" />
+                <span>Reset Data User</span>
+              </button>
+
               <input
                 type="file"
                 ref={userInputRef}
@@ -1134,6 +1198,14 @@ export default function Settings({
                           </td>
                           <td className="p-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickResetSingleUserPin(acc)}
+                                className="p-1.5 bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-400 rounded-lg font-bold transition-all"
+                                title={`Reset PIN / Password ke default (${acc.role === 'admin' ? 'admin' : '1234'})`}
+                              >
+                                <Key size={14} />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleOpenEditUserModal(acc)}
@@ -1247,9 +1319,18 @@ export default function Settings({
 
                 {/* Password / PIN */}
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-700 mb-1">
-                    Password / PIN Login *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-black uppercase text-slate-700">
+                      Password / PIN Login *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setUserFormPassword(userFormRole === 'admin' ? 'admin' : '1234')}
+                      className="text-[10px] font-extrabold text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-2 py-0.5 rounded-md border border-sky-300 transition-all cursor-pointer"
+                    >
+                      Reset Default ({userFormRole === 'admin' ? 'admin' : '1234'})
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={userFormPassword}
@@ -1257,6 +1338,9 @@ export default function Settings({
                     placeholder="Masukkan password / PIN..."
                     className="w-full px-3.5 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:bg-white focus:border-amber-500 font-mono"
                   />
+                  <p className="text-[10px] text-slate-500 font-medium mt-1">
+                    * Password admin default: <code className="bg-slate-100 px-1 rounded font-mono font-bold text-slate-800">admin</code> | PIN siswa default: <code className="bg-slate-100 px-1 rounded font-mono font-bold text-slate-800">1234</code>
+                  </p>
                 </div>
 
                 {/* Nama Lengkap */}

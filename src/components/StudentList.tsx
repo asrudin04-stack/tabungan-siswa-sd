@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Student, Transaction, GradeClass } from '../types';
 import { formatCurrency, formatDate, getClassBadgeStyle } from '../utils';
+import EditTransactionModal from './EditTransactionModal';
 
 interface StudentListProps {
   students: Student[];
@@ -32,6 +33,8 @@ interface StudentListProps {
   onAddStudent: (student: Omit<Student, 'id' | 'createdAt' | 'balance'>, initialDeposit: number) => Student;
   onEditStudent: (id: string, updated: Partial<Omit<Student, 'id' | 'createdAt' | 'balance'>>) => void;
   onDeleteStudent: (id: string) => void;
+  onEditTransaction?: (id: string, updated: Partial<Transaction>) => void;
+  onDeleteTransaction?: (id: string) => void;
   preSelectedStudent: Student | null; // Selected student from dashboard click
   onClosePreSelection: () => void;
   onNavigateToTab?: (tab: string) => void;
@@ -43,6 +46,8 @@ export default function StudentList({
   onAddStudent, 
   onEditStudent, 
   onDeleteStudent,
+  onEditTransaction,
+  onDeleteTransaction,
   preSelectedStudent,
   onClosePreSelection,
   onNavigateToTab
@@ -55,6 +60,8 @@ export default function StudentList({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [detailedStudent, setDetailedStudent] = useState<Student | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isEditTxModalOpen, setIsEditTxModalOpen] = useState(false);
 
   // Form states for Add Student
   const [addForm, setAddForm] = useState({
@@ -789,11 +796,27 @@ export default function StudentList({
                                 {t.notes && <span className="text-[10px] text-slate-500 italic block mt-0.5 truncate max-w-[180px]">{t.notes}</span>}
                               </div>
 
-                              <div className="text-right">
-                                <p className={`text-xs font-bold font-mono ${isSetor ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                  {isSetor ? '+' : '-'}{formatCurrency(t.amount)}
-                                </p>
-                                <span className="text-[9px] text-slate-400 block mt-0.5">Oleh: {t.recordedBy.split(' ')[0]}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className={`text-xs font-bold font-mono ${isSetor ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {isSetor ? '+' : '-'}{formatCurrency(t.amount)}
+                                  </p>
+                                  <span className="text-[9px] text-slate-400 block mt-0.5">Oleh: {t.recordedBy.split(' ')[0]}</span>
+                                </div>
+
+                                {onEditTransaction && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingTransaction(t);
+                                      setIsEditTxModalOpen(true);
+                                    }}
+                                    className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                    title="Koreksi transaksi ini"
+                                  >
+                                    <Edit3 size={12} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -814,6 +837,25 @@ export default function StudentList({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Edit Transaction Modal */}
+      {onEditTransaction && (
+        <EditTransactionModal
+          isOpen={isEditTxModalOpen}
+          transaction={editingTransaction}
+          students={students}
+          onClose={() => {
+            setIsEditTxModalOpen(false);
+            setEditingTransaction(null);
+          }}
+          onSave={(id, updated) => {
+            onEditTransaction(id, updated);
+          }}
+          onDelete={onDeleteTransaction ? (id) => {
+            onDeleteTransaction(id);
+          } : undefined}
+        />
+      )}
 
     </div>
   );

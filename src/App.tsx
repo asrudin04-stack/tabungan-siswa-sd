@@ -29,6 +29,7 @@ import {
   saveStudentToCloud, 
   deleteStudentFromCloud, 
   saveTransactionToCloud, 
+  deleteTransactionFromCloud,
   uploadBulkToCloud, 
   clearAllCloudDatabase,
   saveUserAccountToCloud,
@@ -201,9 +202,9 @@ export default function App() {
 
   // --- BUSINESS LOGIC HANDLERS ---
 
-  // Add Transaction (Setor atau Tarik)
-  const handleAddTransaction = (newTxData: Omit<Transaction, 'id' | 'date'>): Transaction => {
-    const timestamp = new Date().toISOString();
+  // Add Transaction (Setor atau Tarik) with optional custom date
+  const handleAddTransaction = (newTxData: Omit<Transaction, 'id' | 'date'> & { date?: string }): Transaction => {
+    const timestamp = newTxData.date || new Date().toISOString();
     const prefix = newTxData.type === 'SETOR' ? 't-setor' : 't-tarik';
     const txId = `${prefix}-${Date.now()}`;
 
@@ -237,6 +238,102 @@ export default function App() {
     }
 
     return newTx;
+  };
+
+  // Edit / Correct Transaction and synchronize student balance
+  const handleEditTransaction = async (id: string, updatedTxData: Partial<Transaction>) => {
+    const oldTx = transactions.find(t => t.id === id);
+    if (!oldTx) return;
+
+    setSyncStatus('saving');
+
+    try {
+      const newStudentId = updatedTxData.studentId || oldTx.studentId;
+      const newType = updatedTxData.type || oldTx.type;
+      const newAmount = updatedTxData.amount !== undefined ? updatedTxData.amount : oldTx.amount;
+
+      const oldDelta = oldTx.type === 'SETOR' ? oldTx.amount : -oldTx.amount;
+      const newDelta = newType === 'SETOR' ? newAmount : -newAmount;
+
+      const promises: Promise<any>[] = [];
+
+      // Update student balance
+      if (oldTx.studentId === newStudentId) {
+        const targetStudent = students.find(s => s.id === oldTx.studentId);
+        if (targetStudent) {
+          const updatedBalance = targetStudent.balance - oldDelta + newDelta;
+          const updatedStudent: Student = {
+            ...targetStudent,
+            balance: updatedBalance
+          };
+          promises.push(saveStudentToCloud(updatedStudent));
+        }
+      } else {
+        // Transaction reassigned to a different student
+        const oldStudent = students.find(s => s.id === oldTx.studentId);
+        const newStudent = students.find(s => s.id === newStudentId);
+
+        if (oldStudent) {
+          const updatedOldStudent: Student = {
+            ...oldStudent,
+            balance: oldStudent.balance - oldDelta
+          };
+          promises.push(saveStudentToCloud(updatedOldStudent));
+        }
+
+        if (newStudent) {
+          const updatedNewStudent: Student = {
+            ...newStudent,
+            balance: newStudent.balance + newDelta
+          };
+          promises.push(saveStudentToCloud(updatedNewStudent));
+        }
+      }
+
+      // Update transaction in Firestore
+      const finalTx: Transaction = {
+        ...oldTx,
+        ...updatedTxData
+      };
+      promises.push(saveTransactionToCloud(finalTx));
+
+      await Promise.all(promises);
+      setSyncStatus('synced');
+    } catch (e) {
+      console.error('Failed to edit transaction:', e);
+      setSyncStatus('error');
+      alert('Gagal mengedit transaksi: ' + e);
+    }
+  };
+
+  // Delete Transaction and restore original student balance
+  const handleDeleteTransaction = async (id: string) => {
+    const txToDelete = transactions.find(t => t.id === id);
+    if (!txToDelete) return;
+
+    setSyncStatus('saving');
+
+    try {
+      const promises: Promise<any>[] = [deleteTransactionFromCloud(id)];
+
+      const targetStudent = students.find(s => s.id === txToDelete.studentId);
+      if (targetStudent) {
+        // Reverse impact of deleted transaction
+        const reverseDelta = txToDelete.type === 'SETOR' ? -txToDelete.amount : txToDelete.amount;
+        const updatedStudent: Student = {
+          ...targetStudent,
+          balance: targetStudent.balance + reverseDelta
+        };
+        promises.push(saveStudentToCloud(updatedStudent));
+      }
+
+      await Promise.all(promises);
+      setSyncStatus('synced');
+    } catch (e) {
+      console.error('Failed to delete transaction:', e);
+      setSyncStatus('error');
+      alert('Gagal menghapus transaksi: ' + e);
+    }
   };
 
   // Register New Student (with optional initial deposit)
@@ -442,6 +539,34 @@ export default function App() {
     setUserAccounts(combined);
     localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(combined));
     uploadBulkUsersToCloud(newAccounts).catch(e => console.error('Failed to bulk upload user accounts to cloud:', e));
+  };
+
+  const handleResetUserAccounts = () => {
+    const defaultUsers: UserAccount[] = [
+      {
+        id: 'usr-admin-1',
+        username: 'admin',
+        password: 'admin',
+        name: 'Guru / Admin Pengelola',
+        role: 'admin',
+        status: 'active',
+        createdAt: '2026-01-01T00:00:00.000Z'
+      },
+      ...students.map((st) => ({
+        id: `usr-student-${st.id}`,
+        username: st.nis,
+        password: '1234',
+        name: st.name,
+        role: 'student' as const,
+        studentId: st.id,
+        studentNis: st.nis,
+        status: 'active' as const,
+        createdAt: st.createdAt
+      }))
+    ];
+    setUserAccounts(defaultUsers);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USERS, JSON.stringify(defaultUsers));
+    uploadBulkUsersToCloud(defaultUsers).catch(e => console.error('Failed to reset user accounts in cloud:', e));
   };
 
   // Cross-component navigations (e.g., clicking top saver goes to student ledger card)
@@ -696,8 +821,11 @@ export default function App() {
             {activeTab === 'cashier' && (
               <Cashier 
                 students={students} 
+                transactions={transactions}
                 onAddTransaction={handleAddTransaction}
-                recordedBy="Bu Rismawati, S.Pd."
+                onEditTransaction={handleEditTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
+                recordedBy={currentUser?.name || "Bu Rismawati, S.Pd."}
               />
             )}
 
@@ -708,6 +836,8 @@ export default function App() {
                 onAddStudent={handleAddStudent}
                 onEditStudent={handleEditStudent}
                 onDeleteStudent={handleDeleteStudent}
+                onEditTransaction={handleEditTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
                 preSelectedStudent={dashboardSelectedStudent}
                 onClosePreSelection={() => setDashboardSelectedStudent(null)}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
@@ -720,6 +850,8 @@ export default function App() {
                 transactions={transactions}
                 onImportData={handleImportData}
                 onClearDatabase={handleClearDatabase}
+                onEditTransaction={handleEditTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
               />
             )}
 
@@ -736,6 +868,7 @@ export default function App() {
                 onUpdateUserAccount={handleUpdateUserAccount}
                 onDeleteUserAccount={handleDeleteUserAccount}
                 onImportUserAccounts={handleImportUserAccounts}
+                onResetUserAccounts={handleResetUserAccounts}
               />
             )}
           </div>
